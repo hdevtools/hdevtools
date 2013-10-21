@@ -38,4 +38,5 @@ data Command
     | CmdModuleFile String
     | CmdInfo FilePath String
     | CmdType FilePath (Int, Int)
+    | CmdFindSymbol String
     deriving (Read, Show)

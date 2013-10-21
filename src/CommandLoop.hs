@@ -27,6 +27,7 @@ import System.Posix.Files (getFileStatus, modificationTime)
 
 import Types (ClientDirective(..), Command(..), CommandExtra(..))
 import Info (getIdentifierInfo, getType)
+import FindSymbol (findSymbol)
 import Cabal (getPackageGhcOpts)
 import Stack
 
@@ -229,6 +230,16 @@ runCommand state clientSend (CmdType file (line, col)) = do
             , show endCol , " "
             , "\"", t, "\""
             ]
+runCommand state clientSend (CmdFindSymbol symbol) = do
+    result <- withWarnings state False $ findSymbol symbol
+    case result of
+        []      -> liftIO $ clientSend (ClientExit ExitSuccess)
+        modules -> liftIO $ mapM_ clientSend
+                       [ ClientStdout (formatModules modules)
+                       , ClientExit ExitSuccess
+                       ]
+    where
+    formatModules = intercalate "\n"
 
 #if __GLASGOW_HASKELL__ >= 706
 logAction :: IORef State -> ClientSend -> GHC.DynFlags -> GHC.Severity -> GHC.SrcSpan -> Outputable.PprStyle -> ErrUtils.MsgDoc -> IO ()
