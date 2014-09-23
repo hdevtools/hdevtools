@@ -1,5 +1,5 @@
 name:                hdevtools
-version:             0.1.0.6
+version:             0.1.0.7
 synopsis:            Persistent GHC powered background server for FAST haskell development tools
 description:
     'hdevtools' is a backend for text editor plugins, to allow for things such as
@@ -30,7 +30,7 @@ description:
 license:             MIT
 license-file:        LICENSE
 author:              Bit Connor
-maintainer:          mutantlemon@gmail.com
+maintainer:          schell.scivally@synapsegroup.com
 copyright:           See AUTHORS file
 category:            Development
 homepage:            https://github.com/bitc/hdevtools/
