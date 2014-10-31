@@ -131,7 +131,7 @@ getSrcSpan _ = Nothing
 
 getTypeLHsBind :: GHC.TypecheckedModule -> GHC.LHsBind GHC.Id -> GHC.Ghc (Maybe (GHC.SrcSpan, GHC.Type))
 #if __GLASGOW_HASKELL__ >= 708
-getTypeLHsBind _ (GHC.L spn GHC.FunBind{GHC.fun_matches = HsExpr.MG _ _ typ _}) = return $ Just (spn, typ)
+getTypeLHsBind _ (GHC.L spn GHC.FunBind{GHC.fun_matches = HsExpr.MG _ _ typ}) = return $ Just (spn, typ)
 #else
 getTypeLHsBind _ (GHC.L spn GHC.FunBind{GHC.fun_matches = GHC.MatchGroup _ typ}) = return $ Just (spn, typ)
 #endif
