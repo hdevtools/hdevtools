@@ -7,6 +7,9 @@ module Cabal
 #ifdef ENABLE_CABAL
 import Stack
 import Control.Exception (IOException, catch)
+import Control.Monad (when)
+import Control.Monad.Trans.Class (lift)
+import Control.Monad.Trans.State (execStateT, modify)
 import Data.Char (isSpace)
 import Data.List (foldl', nub, sort, find, isPrefixOf, isSuffixOf)
 #if __GLASGOW_HASKELL__ < 709
@@ -24,12 +27,13 @@ import Distribution.Simple.LocalBuildInfo (LocalBuildInfo(..), ComponentLocalBui
 #endif
     componentBuildInfo, foldComponent)
 import Distribution.Simple.Compiler (PackageDB(..))
+import Distribution.Simple.Command (CommandParse(..), commandParseArgs)
 import Distribution.Simple.GHC (componentGhcOptions)
 import Distribution.Simple.Program (defaultProgramConfiguration)
 import Distribution.Simple.Program.Db (lookupProgram)
 import Distribution.Simple.Program.Types (ConfiguredProgram(programVersion), simpleProgram)
 import Distribution.Simple.Program.GHC (GhcOptions(..), renderGhcOptions)
-import Distribution.Simple.Setup (ConfigFlags(..), defaultConfigFlags, toFlag)
+import Distribution.Simple.Setup (ConfigFlags(..), defaultConfigFlags, configureCommand, toFlag)
 #if __GLASGOW_HASKELL__ >= 709
 import Distribution.Utils.NubList
 import qualified Distribution.Simple.GHC as GHC(configure)
@@ -110,30 +114,37 @@ stackifyFlags cfg (Just si) = cfg { configDistPref    = toFlag dist
 -- via: https://groups.google.com/d/msg/haskell-stack/8HJ6DHAinU0/J68U6AXTsasJ
 -- cabal configure --package-db=clear --package-db=global --package-db=$(stack path --snapshot-pkg-db) --package-db=$(stack path --local-pkg-db)
 
-getPackageGhcOpts :: FilePath -> Maybe StackConfig -> IO (Either String [String])
-getPackageGhcOpts path mbStack = do
+getPackageGhcOpts :: FilePath -> Maybe StackConfig -> [String] -> IO (Either String [String])
+getPackageGhcOpts path mbStack opts = do
     getPackageGhcOpts' `catch` (\e -> do
         return $ Left $ "Cabal error: " ++ (ioeGetErrorString (e :: IOException)))
   where
     getPackageGhcOpts' :: IO (Either String [String])
     getPackageGhcOpts' = do
         genPkgDescr <- readPackageDescription silent path
-        let cfgFlags'' = (defaultConfigFlags defaultProgramConfiguration)
-                            { configDistPref = toFlag $ takeDirectory path </> "dist"
-                            -- TODO: figure out how to find out this flag
-                            , configUserInstall = toFlag True
-                            }
-        let cfgFlags'  = stackifyFlags cfgFlags'' mbStack
-        let sandboxConfig = takeDirectory path </> "cabal.sandbox.config"
-        exists <- doesFileExist sandboxConfig
 
-        cfgFlags <- case exists of
-                         False -> return cfgFlags'
-                         True -> do
-                             sandboxPackageDb <- getSandboxPackageDB sandboxConfig
-                             return $ cfgFlags'
-                                          { configPackageDBs = [Just sandboxPackageDb]
-                                          }
+        let programCfg = defaultProgramConfiguration
+        let initCfgFlags = (defaultConfigFlags programCfg)
+                             { configDistPref = toFlag $ takeDirectory path </> "dist"
+                             -- TODO: figure out how to find out this flag
+                             , configUserInstall = toFlag True
+                             }
+        let initCfgFlags' = stackifyFlags initCfgFlags mbStack
+
+        cfgFlags <- flip execStateT initCfgFlags' $ do
+          let sandboxConfig = takeDirectory path </> "cabal.sandbox.config"
+
+          exists <- lift $ doesFileExist sandboxConfig
+          when (exists) $ do
+            sandboxPackageDb <- lift $ getSandboxPackageDB sandboxConfig
+            modify $ \x -> x { configPackageDBs = [Just sandboxPackageDb] }
+
+          let cmdUI = configureCommand programCfg
+          case commandParseArgs cmdUI True opts of
+            CommandReadyToGo (modFlags, _) -> modify modFlags
+            CommandErrors (e:_) -> error e
+            _ -> return ()
+
         localBuildInfo <- configure (genPkgDescr, emptyHookedBuildInfo) cfgFlags
         let pkgDescr = localPkgDescr localBuildInfo
         let baseDir = fst . splitFileName $ path
@@ -217,8 +228,8 @@ findCabalFile dir = do
 
 # else
 
-getPackageGhcOpts :: FilePath -> IO (Either String [String])
-getPackageGhcOpts _ = return $ Right []
+getPackageGhcOpts :: FilePath -> [String] -> IO (Either String [String])
+getPackageGhcOpts _ _ = return $ Right []
 
 findCabalFile :: FilePath -> IO (Maybe FilePath)
 findCabalFile _ = return Nothing

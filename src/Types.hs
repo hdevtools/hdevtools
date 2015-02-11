@@ -12,12 +12,14 @@ data CommandExtra = CommandExtra
   { ceGhcOptions  :: [String]
   , ceCabalConfig :: Maybe FilePath
   , cePath        :: Maybe FilePath
+  , ceCabalOptions :: [String]
   } deriving (Read, Show)
 
 emptyCommandExtra :: CommandExtra
 emptyCommandExtra = CommandExtra { ceGhcOptions  = []
                                  , ceCabalConfig = Nothing
                                  , cePath        = Nothing
+                                 , ceCabalOptions = []
                                  }
 
 data ServerDirective
