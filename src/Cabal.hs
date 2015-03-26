@@ -22,11 +22,13 @@ import Distribution.Simple.LocalBuildInfo (LocalBuildInfo(..), ComponentLocalBui
     componentBuildInfo, foldComponent)
 import Distribution.Simple.Compiler (PackageDB(..))
 import Distribution.Simple.GHC (componentGhcOptions)
+import qualified Distribution.Simple.GHC as GHC(configure)
 import Distribution.Simple.Program (defaultProgramConfiguration)
 import Distribution.Simple.Program.Db (lookupProgram)
 import Distribution.Simple.Program.Types (ConfiguredProgram(programVersion), simpleProgram)
 import Distribution.Simple.Program.GHC (GhcOptions(..), renderGhcOptions)
 import Distribution.Simple.Setup (ConfigFlags(..), defaultConfigFlags, toFlag)
+import Distribution.Utils.NubList
 import Distribution.Verbosity (silent)
 import Distribution.Version (Version(..))
 
@@ -127,13 +129,15 @@ getPackageGhcOpts path = do
 
                 let ghcOpts' = foldl' mappend mempty $ map (getComponentGhcOptions localBuildInfo) $ flip allComponentsBy (\c -> c) . localPkgDescr $ localBuildInfo
                     -- FIX bug in GhcOptions' `mappend`
-                    ghcOpts = ghcOpts' { ghcOptExtra = filter (/= "-Werror") $ nub $ ghcOptExtra ghcOpts'
+                    ghcOpts = ghcOpts' { ghcOptExtra = overNubListR (filter (/= "-Werror")) $ ghcOptExtra ghcOpts'
                                        , ghcOptPackageDBs = sort $ nub (ghcOptPackageDBs ghcOpts')
-                                       , ghcOptPackages = filter (\(_, pkgId) -> Just (pkgName pkgId) /= mbLibName) $ nub (ghcOptPackages ghcOpts')
-                                       , ghcOptSourcePath = map (baseDir </>) (ghcOptSourcePath ghcOpts')
+                                       , ghcOptPackages = overNubListR (filter (\(_, pkgId, _) -> Just (pkgName pkgId) /= mbLibName)) $ (ghcOptPackages ghcOpts')
+                                       , ghcOptSourcePath = overNubListR (map (baseDir </>)) (ghcOptSourcePath ghcOpts')
                                        }
 
-                return $ Right $ renderGhcOptions ghcVersion ghcOpts
+                (ghcInfo,_,_) <- GHC.configure silent (Just path) Nothing defaultProgramConfiguration
+
+                return $ Right $ renderGhcOptions ghcInfo ghcOpts
 
     pkgLibName :: PackageDescription -> Maybe PackageName
     pkgLibName pkgDescr = if hasLibrary pkgDescr
