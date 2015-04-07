@@ -18,6 +18,8 @@ import qualified DynFlags
 #endif
 #if __GLASGOW_HASKELL__ >= 708
 import qualified HsExpr
+#else
+import qualified TcRnTypes
 #endif
 import qualified GHC
 import qualified HscTypes
@@ -26,7 +28,6 @@ import qualified Outputable
 import qualified PprTyThing
 import qualified Pretty
 import qualified TcHsSyn
-import qualified TcRnTypes
 
 getIdentifierInfo :: FilePath -> String -> GHC.Ghc (Either String String)
 getIdentifierInfo file identifier =
@@ -138,22 +139,24 @@ getTypeLHsBind _ (GHC.L spn GHC.FunBind{GHC.fun_matches = GHC.MatchGroup _ typ})
 getTypeLHsBind _ _ = return Nothing
 
 getTypeLHsExpr :: GHC.TypecheckedModule -> GHC.LHsExpr GHC.Id -> GHC.Ghc (Maybe (GHC.SrcSpan, GHC.Type))
+#if __GLASGOW_HASKELL__ >= 708
+getTypeLHsExpr _ e = do
+#else
 getTypeLHsExpr tcm e = do
+#endif
     hs_env <- GHC.getSession
 #if __GLASGOW_HASKELL__ >= 708
-    let fm_inst_env = TcRnTypes.tcg_fam_inst_env $ fst $ GHC.tm_internals_ tcm
     (_, mbe) <- liftIO $ Desugar.deSugarExpr hs_env e
 #else
+    let modu   = GHC.ms_mod $ GHC.pm_mod_summary $ GHC.tm_parsed_module tcm
+        rn_env = TcRnTypes.tcg_rdr_env $ fst $ GHC.tm_internals_ tcm
+        ty_env = TcRnTypes.tcg_type_env $ fst $ GHC.tm_internals_ tcm
     (_, mbe) <- liftIO $ Desugar.deSugarExpr hs_env modu rn_env ty_env e
 #endif
     return ()
     case mbe of
         Nothing -> return Nothing
         Just expr -> return $ Just (GHC.getLoc e, CoreUtils.exprType expr)
-    where
-    modu = GHC.ms_mod $ GHC.pm_mod_summary $ GHC.tm_parsed_module tcm
-    rn_env = TcRnTypes.tcg_rdr_env $ fst $ GHC.tm_internals_ tcm
-    ty_env = TcRnTypes.tcg_type_env $ fst $ GHC.tm_internals_ tcm
 
 getTypeLPat :: GHC.TypecheckedModule -> GHC.LPat GHC.Id -> GHC.Ghc (Maybe (GHC.SrcSpan, GHC.Type))
 getTypeLPat _ (GHC.L spn pat) = return $ Just (spn, TcHsSyn.hsPatType pat)
