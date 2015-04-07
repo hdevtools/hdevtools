@@ -33,14 +33,14 @@ author:              Bit Connor
 maintainer:          schell.scivally@synapsegroup.com
 copyright:           See AUTHORS file
 category:            Development
-homepage:            https://github.com/bitc/hdevtools/
-bug-reports:         https://github.com/bitc/hdevtools/issues/
+homepage:            https://github.com/schell/hdevtools/
+bug-reports:         https://github.com/schell/hdevtools/issues/
 build-type:          Simple
 cabal-version:       >=1.8
 
 source-repository head
   type:                git
-  location:            git://github.com/bitc/hdevtools.git
+  location:            git://github.com/schell/hdevtools.git
 
 executable hdevtools
   hs-source-dirs:      src
