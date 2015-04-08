@@ -9,7 +9,9 @@ module Cabal
 import Control.Exception (IOException, catch)
 import Data.Char (isSpace)
 import Data.List (foldl', nub, sort, find, isPrefixOf, isSuffixOf)
+#if __GLASGOW_HASKELL__ < 709
 import Data.Monoid (Monoid(..))
+#endif
 import Distribution.Package (PackageIdentifier(..), PackageName)
 import Distribution.PackageDescription (PackageDescription(..), Executable(..), TestSuite(..), Benchmark(..), emptyHookedBuildInfo, buildable, libBuildInfo)
 import Distribution.PackageDescription.Parse (readPackageDescription)
@@ -138,7 +140,8 @@ getPackageGhcOpts path = do
                                        , ghcOptSourcePath = overNubListR (map (baseDir </>)) (ghcOptSourcePath ghcOpts')
                                        }
 
-                (ghcInfo,_,_) <- GHC.configure silent (Just path) Nothing defaultProgramConfiguration
+                putStrLn "configuring"
+                (ghcInfo,_,_) <- GHC.configure silent Nothing Nothing defaultProgramConfiguration
 
                 return $ Right $ renderGhcOptions ghcInfo ghcOpts
 #else
@@ -149,34 +152,34 @@ getPackageGhcOpts path = do
                 return $ Right $ renderGhcOptions ghcVersion ghcOpts
 #endif
 
-    pkgLibName :: PackageDescription -> Maybe PackageName
-    pkgLibName pkgDescr = if hasLibrary pkgDescr
-                          then Just $ pkgName . package $ pkgDescr
-                          else Nothing
+pkgLibName :: PackageDescription -> Maybe PackageName
+pkgLibName pkgDescr = if hasLibrary pkgDescr
+                      then Just $ pkgName . package $ pkgDescr
+                      else Nothing
 
-    hasLibrary :: PackageDescription -> Bool
-    hasLibrary = maybe False (\_ -> True) . library
+hasLibrary :: PackageDescription -> Bool
+hasLibrary = maybe False (\_ -> True) . library
 
-    getComponentGhcOptions :: LocalBuildInfo -> Component -> GhcOptions
-    getComponentGhcOptions lbi comp =
-        componentGhcOptions silent lbi bi clbi (buildDir lbi)
+getComponentGhcOptions :: LocalBuildInfo -> Component -> GhcOptions
+getComponentGhcOptions lbi comp =
+    componentGhcOptions silent lbi bi clbi (buildDir lbi)
 
-      where bi   = componentBuildInfo comp
-            clbi = getComponentLocalBuildInfo lbi (componentName comp)
+  where bi   = componentBuildInfo comp
+        clbi = getComponentLocalBuildInfo lbi (componentName comp)
 
-    getGhcVersion :: LocalBuildInfo -> Maybe Version
-    getGhcVersion lbi = let db = withPrograms lbi
-                         in do ghc <- lookupProgram (simpleProgram "ghc") db
-                               programVersion ghc
+getGhcVersion :: LocalBuildInfo -> Maybe Version
+getGhcVersion lbi = let db = withPrograms lbi
+                     in do ghc <- lookupProgram (simpleProgram "ghc") db
+                           programVersion ghc
 
-    getSandboxPackageDB :: FilePath -> IO PackageDB
-    getSandboxPackageDB sandboxPath = do
-        contents <- readFile sandboxPath
-        return $ SpecificPackageDB $ extractValue . parse $ contents
-      where
-        pkgDbKey = "package-db:"
-        parse = head . filter (pkgDbKey `isPrefixOf`) . lines
-        extractValue = fst . break isSpace . dropWhile isSpace . drop (length pkgDbKey)
+getSandboxPackageDB :: FilePath -> IO PackageDB
+getSandboxPackageDB sandboxPath = do
+    contents <- readFile sandboxPath
+    return $ SpecificPackageDB $ extractValue . parse $ contents
+  where
+    pkgDbKey = "package-db:"
+    parse = head . filter (pkgDbKey `isPrefixOf`) . lines
+    extractValue = fst . break isSpace . dropWhile isSpace . drop (length pkgDbKey)
 
 
 findCabalFile :: FilePath -> IO (Maybe FilePath)
