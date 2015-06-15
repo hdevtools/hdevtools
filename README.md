@@ -72,6 +72,12 @@ details.
 [Flycheck][5] is a modern batteries-included
 syntax checker for Emacs, and there is a [flycheck-hdevtools][6] checker available.
 
+
+### Atom - [linter][8] ###
+
+There is a [linter-hdevtools][8] package for using `hdevtools` to quickly
+find type errors in Haskell files in the the [Atom][7] editor.
+
 ### Manual Editor Integration for any Editor ###
 
 Most editors allow you to run a `make` command, and will then parse the output
@@ -182,3 +188,5 @@ client-server architecture it is much faster.
 [4]: http://www.mew.org/~kazu/proj/ghc-mod/en/
 [5]: https://github.com/flycheck/flycheck
 [6]: https://github.com/flycheck/flycheck-hdevtools
+[7]: https://atom.io
+[8]: https://atom.io/packages/linter-hdevtools
