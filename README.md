@@ -143,6 +143,16 @@ background process, not your current directory. This can cause problems, and
 therefore it is recommended that you leave the socket file as the default, and
 always run `hdevtools` from the same directory.
 
+You can specify the path to a target file with the `--path` option. This is 
+useful for integration with IDEs that submit a *copy* of the original source
+file (in a temporary directory) to `hdevtools` making it impossible to extract
+the `.cabal` information for the file's project. In such cases, you can run as:
+
+    $ hdevtools check -p /path/to/file.hs /tmp/file.hs
+
+and `hdevtools` will use the given path to obtain the `.cabal` information.
+
+
 ### Specifying GHC Options ###
 
 For most non-trivial projects, you will need to tell `hdevtools` about
