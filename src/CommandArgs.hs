@@ -44,34 +44,37 @@ fullVersion =
 
 data HDevTools
     = Admin
-        { socket :: Maybe FilePath
+        { socket       :: Maybe FilePath
         , start_server :: Bool
-        , noDaemon :: Bool
-        , status :: Bool
-        , stop_server :: Bool
+        , noDaemon     :: Bool
+        , status       :: Bool
+        , stop_server  :: Bool
         }
     | Check
-        { socket :: Maybe FilePath
+        { socket  :: Maybe FilePath
         , ghcOpts :: [String]
-        , file :: String
+        , path    :: Maybe String
+        , file    :: String
         }
     | ModuleFile
-        { socket :: Maybe FilePath
+        { socket  :: Maybe FilePath
         , ghcOpts :: [String]
         , module_ :: String
         }
     | Info
-        { socket :: Maybe FilePath
-        , ghcOpts :: [String]
-        , file :: String
+        { socket     :: Maybe FilePath
+        , ghcOpts    :: [String]
+        , path       :: Maybe String
+        , file       :: String
         , identifier :: String
         }
     | Type
-        { socket :: Maybe FilePath
+        { socket  :: Maybe FilePath
         , ghcOpts :: [String]
-        , file :: String
-        , line :: Int
-        , col :: Int
+        , path    :: Maybe String
+        , file    :: String
+        , line    :: Int
+        , col     :: Int
         }
     deriving (Show, Data, Typeable)
 
@@ -86,48 +89,52 @@ dummyAdmin = Admin
 
 dummyCheck :: HDevTools
 dummyCheck = Check
-    { socket = Nothing
+    { socket  = Nothing
     , ghcOpts = []
-    , file = ""
+    , path    = Nothing
+    , file    = ""
     }
 
 dummyModuleFile :: HDevTools
 dummyModuleFile = ModuleFile
-    { socket = Nothing
+    { socket  = Nothing
     , ghcOpts = []
     , module_ = ""
     }
 
 dummyInfo :: HDevTools
 dummyInfo = Info
-    { socket = Nothing
-    , ghcOpts = []
-    , file = ""
+    { socket     = Nothing
+    , ghcOpts    = []
+    , path       = Nothing
+    , file       = ""
     , identifier = ""
     }
 
 dummyType :: HDevTools
 dummyType = Type
-    { socket = Nothing
+    { socket  = Nothing
     , ghcOpts = []
-    , file = ""
-    , line = 0
-    , col = 0
+    , path    = Nothing
+    , file    = ""
+    , line    = 0
+    , col     = 0
     }
 
 admin :: Annotate Ann
 admin = record dummyAdmin
-    [ socket   := def += typFile += help "socket file to use"
-    , start_server   := def            += help "start server"
-    , noDaemon := def            += help "do not daemonize (only if --start-server)"
-    , status   := def            += help "show status of server"
-    , stop_server := def         += help "shutdown the server"
+    [ socket       := def += typFile += help "socket file to use"
+    , start_server := def            += help "start server"
+    , noDaemon     := def            += help "do not daemonize (only if --start-server)"
+    , status       := def            += help "show status of server"
+    , stop_server  := def            += help "shutdown the server"
     ] += help "Interactions with the server"
 
 check :: Annotate Ann
 check = record dummyCheck
-    [ socket   := def += typFile += help "socket file to use"
-    , ghcOpts  := def += typ "OPTION"   += help "ghc options"
+    [ socket   := def += typFile      += help "socket file to use"
+    , ghcOpts  := def += typ "OPTION" += help "ghc options"
+    , path     := def += typFile      += help "path to target file"
     , file     := def += typFile      += argPos 0 += opt ""
     ] += help "Check a haskell source file for errors and warnings"
 
@@ -140,8 +147,9 @@ moduleFile = record dummyModuleFile
 
 info :: Annotate Ann
 info = record dummyInfo
-    [ socket     := def += typFile += help "socket file to use"
+    [ socket     := def += typFile      += help "socket file to use"
     , ghcOpts    := def += typ "OPTION" += help "ghc options"
+    , path       := def += typFile      += help "path to target file"
     , file       := def += typFile      += argPos 0 += opt ""
     , identifier := def += typ "IDENTIFIER" += argPos 1
     ] += help "Get info from GHC about the specified identifier"
@@ -150,6 +158,7 @@ type_ :: Annotate Ann
 type_ = record dummyType
     [ socket   := def += typFile += help "socket file to use"
     , ghcOpts  := def += typ "OPTION" += help "ghc options"
+    , path     := def += typFile      += help "path to target file"
     , file     := def += typFile      += argPos 0 += opt ""
     , line     := def += typ "LINE"   += argPos 1
     , col      := def += typ "COLUMN" += argPos 2
