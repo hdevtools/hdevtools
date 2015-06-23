@@ -39,7 +39,7 @@ pathArg' args@(Info  {}) = path args
 pathArg' args@(Type  {}) = path args
 
 pathArg :: HDevTools -> Maybe String
-pathArg args = case path args of
+pathArg args = case pathArg' args of
                 Just x  -> Just x
                 Nothing -> fileArg args
 

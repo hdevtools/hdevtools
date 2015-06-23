@@ -75,8 +75,10 @@ syntax checker for Emacs, and there is a [flycheck-hdevtools][6] checker availab
 
 ### Atom - [linter][8] ###
 
-There is a [linter-hdevtools][8] package for using `hdevtools` to quickly
-find type errors in Haskell files in the the [Atom][7] editor.
+There are *two* packages for the [Atom](https://atom.io) editor:
+
++ [linter-hdevtools][8] quickly finds and underlines type errors in Haskell files,
++ [hover-tooltips-hdevtools][9] displays the types of identifiers under the mouse. 
 
 ### Manual Editor Integration for any Editor ###
 
@@ -200,3 +202,5 @@ client-server architecture it is much faster.
 [6]: https://github.com/flycheck/flycheck-hdevtools
 [7]: https://atom.io
 [8]: https://atom.io/packages/linter-hdevtools
+[9]: https://atom.io/packages/hover-tooltips-hdevtools
+

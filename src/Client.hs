@@ -18,7 +18,7 @@ import Util (readMaybe)
 
 connect :: FilePath -> IO Handle
 connect sock = do
-    connectTo "" (UnixSocket sock)
+  connectTo "" (UnixSocket sock)
 
 getServerStatus :: FilePath -> IO ()
 getServerStatus sock = do
