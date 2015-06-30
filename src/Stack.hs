@@ -1,4 +1,4 @@
-module Stack (getStackDbs) where
+module Stack (debug, getStackDbs) where
 
 import Data.Char (isSpace)
 import System.Process
@@ -10,8 +10,19 @@ import Types
 -- 1. Figure out if this is a stack project,
 -- 2. Run stack exec ... to extract path
 
+debug :: String -> IO ()
+debug msg = appendFile "/Users/rjhala/tmp/hdevtools-debug" $ msg ++ "\n"
+
 getStackDbs :: CommandExtra -> IO (Maybe [FilePath])
-getStackDbs ce = case cePath ce of
+getStackDbs ce = do
+  r <- getStackDbs_ ce
+  debug $ "CommandExtra: " ++ show ce
+  debug $ "Result: " ++ show r
+  return r
+
+
+getStackDbs_ :: CommandExtra -> IO (Maybe [FilePath])
+getStackDbs_ ce = case cePath ce of
                    Nothing -> return Nothing
                    Just p  -> getStackDbs' p
 

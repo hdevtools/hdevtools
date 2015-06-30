@@ -96,10 +96,10 @@ allComponentsBy pkg_descr f =
 #endif
 
 
-getPackageGhcOpts :: FilePath -> IO (Either String [String])
-getPackageGhcOpts path = do
+getPackageGhcOpts :: FilePath -> [FilePath] -> IO (Either String [String])
+getPackageGhcOpts path dbs = do
     getPackageGhcOpts' `catch` (\e -> do
-        return $ Left $ "Cabal error: " ++ (ioeGetErrorString (e :: IOException)))
+        return $ Left $ "Cabalasdasd error: " ++ (ioeGetErrorString (e :: IOException)))
   where
     getPackageGhcOpts' :: IO (Either String [String])
     getPackageGhcOpts' = do
@@ -109,6 +109,7 @@ getPackageGhcOpts path = do
                             { configDistPref = toFlag $ takeDirectory path </> "dist"
                             -- TODO: figure out how to find out this flag
                             , configUserInstall = toFlag True
+                            , configPackageDBs  = Just . SpecificPackageDB <$> dbs
                             }
 
         let sandboxConfig = takeDirectory path </> "cabal.sandbox.config"
