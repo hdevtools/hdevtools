@@ -1,5 +1,13 @@
-module Stack (debug, getStackDbs) where
+module Stack
+      ( -- * The bits of information needed from `stack`
+        StackConfig (..)
+        -- * Run `stack exec` to compute @StackConfig@
+      , getStackConfig
+        -- * Temporary logger
+      , debug
+      ) where
 
+import Data.Maybe (listToMaybe)
 import Data.Char (isSpace)
 import System.Process
 import System.FilePath
@@ -7,37 +15,44 @@ import System.Directory
 import Control.Monad (filterM)
 import Types
 
--- 1. Figure out if this is a stack project,
--- 2. Run stack exec ... to extract path
+-- | This module adds support for `stack`, as follows:
+--   1. Figure out if this is a stack project,
+--   2. Run `stack exec` to extract `StackConfig`
+--   3. The `StackConfig` is used to suitably alter the cabal ConfigFlags in Cabal.hs
 
 debug :: String -> IO ()
 debug msg = appendFile "/Users/rjhala/tmp/hdevtools-debug" $ msg ++ "\n"
 
-getStackDbs :: CommandExtra -> IO (Maybe [FilePath])
-getStackDbs ce = do
-  r <- getStackDbs_ ce
-  debug $ "CommandExtra: " ++ show ce
-  debug $ "Result: " ++ show r
-  return r
+-- TODO: Move into Types?
+data StackConfig = StackConfig { stackDist :: FilePath
+                               , stackDbs  :: [FilePath]
+                               }
+                   deriving (Eq, Show)
 
 
-getStackDbs_ :: CommandExtra -> IO (Maybe [FilePath])
-getStackDbs_ ce = case cePath ce of
-                   Nothing -> return Nothing
-                   Just p  -> getStackDbs' p
+--------------------------------------------------------------------------------
+getStackConfig :: CommandExtra -> IO (Maybe StackConfig)
+--------------------------------------------------------------------------------
+getStackConfig ce = case cePath ce of
+                      Nothing -> return Nothing
+                      Just p  -> getStackConfig' p
 
-getStackDbs' :: FilePath -> IO (Maybe [FilePath])
-getStackDbs' p = do
-  b <- isStackProject p
-  if b
-    then Just <$> pathStackDbs p
-    else return Nothing
-
-isStackProject :: FilePath -> IO Bool
-isStackProject p = existsM doesFileExist paths
+getStackConfig' :: FilePath -> IO (Maybe StackConfig)
+getStackConfig' p = do
+  mbYaml <- getStackYaml p
+  case mbYaml of
+    Nothing -> return Nothing
+    Just _  -> jStackConfig <$> getStackDist p <*> getStackDbs p
   where
-    paths        = [ d </> "stack.yaml" | d <- pathsToRoot dir]
-    dir          = takeDirectory p
+    jStackConfig x y = Just (StackConfig x y)
+
+--------------------------------------------------------------------------------
+getStackYaml :: FilePath -> IO (Maybe FilePath)
+--------------------------------------------------------------------------------
+getStackYaml p = listToMaybe <$> filterM doesFileExist paths
+  where
+    paths      = [ d </> "stack.yaml" | d <- pathsToRoot dir]
+    dir        = takeDirectory p
 
 pathsToRoot :: FilePath -> [FilePath]
 pathsToRoot p
@@ -46,20 +61,39 @@ pathsToRoot p
   where
     parent      = takeDirectory p
 
-existsM :: (Monad m) => (a -> m Bool) -> [a] -> m Bool
-existsM f xs = (not . null) <$> filterM f xs
+-- existsM :: (Monad m) => (a -> m Bool) -> [a] -> m Bool
+-- existsM f xs = (not . null) <$> filterM f xs
 
-pathStackDbs :: FilePath -> IO [FilePath]
-pathStackDbs p = readCreateProcess prc "" >>= extractDbs
+--------------------------------------------------------------------------------
+getStackDist :: FilePath -> IO FilePath
+--------------------------------------------------------------------------------
+getStackDist p = trim <$> execInPath cmd p
   where
-    prc        = (shell cmd) { cwd = Just $ takeDirectory p }
-    cmd        = "stack --verbosity quiet exec printenv GHC_PACKAGE_PATH"
+    cmd        = "stack path --dist-dir"
+    -- dir        = takeDirectory p
+    -- splice     = (dir </>) . trim
+
+-- extractPath dist' = do
+--   let dist = trim dist'
+--   b <- doesDirectoryExist dist
+--   return $ if b then Just dist else Nothing
+
+--------------------------------------------------------------------------------
+getStackDbs :: FilePath -> IO [FilePath]
+--------------------------------------------------------------------------------
+getStackDbs p = execInPath cmd p >>= extractDbs
+  where
+    cmd       = "stack --verbosity quiet exec printenv GHC_PACKAGE_PATH"
 
 extractDbs :: String -> IO [FilePath]
 extractDbs = filterM doesDirectoryExist . stringPaths
 
 stringPaths :: String -> [String]
 stringPaths = splitBy ':' . trim
+
+--------------------------------------------------------------------------------
+-- | Generic Helpers
+--------------------------------------------------------------------------------
 
 splitBy :: Char -> String -> [String]
 splitBy c str
@@ -72,3 +106,8 @@ trim :: String -> String
 trim = f . f
    where
      f = reverse . dropWhile isSpace
+
+execInPath :: String -> FilePath -> IO String
+execInPath cmd p = readCreateProcess prc ""
+  where
+    prc          = (shell cmd) { cwd = Just $ takeDirectory p }

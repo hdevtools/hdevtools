@@ -20,7 +20,7 @@ import qualified Exception (ExceptionMonad)
 import qualified GHC
 import qualified GHC.Paths
 import qualified Outputable
-import qualified DynFlags
+-- RJ import qualified DynFlags
 import System.Posix.Types (EpochTime)
 import System.Posix.Files (getFileStatus, modificationTime)
 
@@ -54,14 +54,6 @@ mkCabalConfig path = do
                          , cabalConfigLastUpdatedAt = modificationTime fileStatus
                          }
 
-data StackConfig = StackConfig
-    { stackPkgConfs :: [FilePath] -- PkgConfFile :: FilePath -> PkgConfRef
-    }
-    deriving (Eq, Show)
-
-mkStackConfig :: Maybe [FilePath] -> Maybe StackConfig
-mkStackConfig = fmap StackConfig
-
 data Config = Config
     { configGhcOpts :: [String]
     , configCabal   :: Maybe CabalConfig
@@ -72,7 +64,7 @@ data Config = Config
 newConfig :: CommandExtra -> IO Config
 newConfig cmdExtra = do
     mbCabalConfig <- traverse mkCabalConfig $ ceCabalConfig cmdExtra
-    mbStackConfig <- mkStackConfig <$> getStackDbs cmdExtra
+    mbStackConfig <- getStackConfig cmdExtra
 
     return $ Config { configGhcOpts = ceGhcOptions cmdExtra
                     , configCabal = mbCabalConfig
@@ -145,8 +137,8 @@ configSession state clientSend config = do
                           return $ Right []
                       Just cabalConfig -> do
                           liftIO $ setCurrentDirectory . takeDirectory $ cabalConfigPath cabalConfig
-                          liftIO $ getPackageGhcOpts (cabalConfigPath cabalConfig) eStackGhcDbs
-    liftIO $ debug $ "eStackGhcDbs:" ++ show eCabalGhcOpts -- (configStack config)
+                          liftIO $ getPackageGhcOpts (cabalConfigPath cabalConfig) (configStack config)
+    liftIO $ debug $ "eStackGhcDbs:" ++ show eCabalGhcOpts
     case eCabalGhcOpts of
       Left e -> return $ Left e
       Right cabalGhcOpts -> do
@@ -161,7 +153,7 @@ configSession state clientSend config = do
                 { GHC.log_action    = logAction state clientSend
                 , GHC.ghcLink       = GHC.NoLink
                 , GHC.hscTarget     = GHC.HscInterpreted
-                , GHC.extraPkgConfs = ((DynFlags.PkgConfFile <$> eStackGhcDbs) ++)
+                --  RJ , GHC.extraPkgConfs = ((DynFlags.PkgConfFile <$> eStackGhcDbs) ++)
                 }
         (finalDynFlags, _, _) <- GHC.parseDynamicFlags updatedDynFlags (map GHC.noLoc ghcOpts)
         _ <- GHC.setSessionDynFlags finalDynFlags
@@ -170,8 +162,8 @@ configSession state clientSend config = do
     handleGhcError :: GHC.GhcException -> GHC.Ghc String
     handleGhcError e = return $ GHC.showGhcException e ""
 
-    eStackGhcDbs :: [FilePath]
-    eStackGhcDbs = maybe [] stackPkgConfs $ configStack config
+    -- RJ eStackGhcDbs :: [FilePath]
+    -- RJ eStackGhcDbs = maybe [] stackDbs (configStack config)
 
 runCommand :: IORef State -> ClientSend -> Command -> GHC.Ghc ()
 runCommand _ clientSend (CmdCheck file) = do
