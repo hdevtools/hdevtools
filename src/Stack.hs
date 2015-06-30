@@ -13,17 +13,21 @@ import Types
 getStackDbs :: CommandExtra -> IO (Maybe [FilePath])
 getStackDbs ce = case cePath ce of
                    Nothing -> return Nothing
-                   Just p  -> do b <- isStackProject p
-                                 if b
-                                   then Just <$> pathStackDbs p
-                                   else return Nothing
+                   Just p  -> getStackDbs' p
+
+getStackDbs' :: FilePath -> IO (Maybe [FilePath])
+getStackDbs' p = do
+  b <- isStackProject p
+  if b
+    then Just <$> pathStackDbs p
+    else return Nothing
 
 isStackProject :: FilePath -> IO Bool
 isStackProject p = existsM doesFileExist paths
   where
     paths        = [ d </> "stack.yaml" | d <- pathsToRoot dir]
     dir          = takeDirectory p
-    
+
 pathsToRoot :: FilePath -> [FilePath]
 pathsToRoot p
   | p == parent = [p]
