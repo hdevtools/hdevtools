@@ -55,6 +55,7 @@ executable hdevtools
                        Info,
                        Main,
                        Server,
+                       Stack,
                        Types,
                        Util,
                        Paths_hdevtools
@@ -67,6 +68,7 @@ executable hdevtools
                        ghc-paths,
                        syb,
                        network,
+                       process,
                        time,
                        unix
 

@@ -46,16 +46,16 @@ pathArg args = case pathArg' args of
 main :: IO ()
 main = do
     args <- loadHDevTools
-    dir  <- maybe getCurrentDirectory (return . takeDirectory) $ pathArg args
+    let argPath = pathArg args
+    dir  <- maybe getCurrentDirectory (return . takeDirectory) argPath
     mCabalFile <- findCabalFile dir >>= traverse absoluteFilePath
     let extra = emptyCommandExtra
-                    { ceGhcOptions = ghcOpts args
+                    { ceGhcOptions  = ghcOpts args
                     , ceCabalConfig = mCabalFile
+                    , cePath        = argPath
                     }
-
     let defaultSocketPath = maybe "" takeDirectory mCabalFile </> defaultSocketFile
     let sock = fromMaybe defaultSocketPath $ socket args
-
     case args of
         Admin {} -> doAdmin sock args extra
         Check {} -> doCheck sock args extra
