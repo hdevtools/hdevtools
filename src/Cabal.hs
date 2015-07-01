@@ -162,9 +162,6 @@ getPackageGhcOpts path mbStack = do
                                        , ghcOptPackages = overNubListR (filter (\(_, pkgId, _) -> Just (pkgName pkgId) /= mbLibName)) $ (ghcOptPackages ghcOpts')
                                        , ghcOptSourcePath = overNubListR (map (baseDir </>)) (ghcOptSourcePath ghcOpts')
                                        }
-                debug $ "STACKINFO: "      ++ show mbStack
-                debug $ "CONFIGFLAGS: "    ++ show cfgFlags
-                debug $ "LOCALBUILDINFO: " ++ show localBuildInfo
                 putStrLn "configuring"
                 (ghcInfo,_,_) <- GHC.configure silent Nothing Nothing defaultProgramConfiguration
 
