@@ -137,7 +137,6 @@ configSession state clientSend config = do
                       Just cabalConfig -> do
                           liftIO $ setCurrentDirectory . takeDirectory $ cabalConfigPath cabalConfig
                           liftIO $ getPackageGhcOpts (cabalConfigPath cabalConfig) (configStack config)
-    liftIO $ debug $ "CABALGHCOPTS: " ++ show eCabalGhcOpts
     case eCabalGhcOpts of
       Left e -> return $ Left e
       Right cabalGhcOpts -> do
@@ -147,6 +146,7 @@ configSession state clientSend config = do
   where
     updateDynFlags :: [String] -> GHC.Ghc ()
     updateDynFlags ghcOpts = do
+        liftIO $ debug $ "GHCOPTS: " ++ show ghcOpts
         initialDynFlags <- GHC.getSessionDynFlags
         let updatedDynFlags = initialDynFlags
                 { GHC.log_action    = logAction state clientSend
