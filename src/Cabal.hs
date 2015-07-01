@@ -41,23 +41,6 @@ import System.Directory (doesFileExist, getDirectoryContents)
 import System.FilePath (takeDirectory, splitFileName, (</>))
 
 
-{-
-
-, ghcOptHiDir = Flag "/Users/rjhala/research/stack/liquid/liquidhaskell/dist/build"
-, ghcOptObjDir = Flag "/Users/rjhala/research/stack/liquid/liquidhaskell/dist/build"
-, ghcOptOutputDir = Flag "/Users/rjhala/research/stack/liquid/liquidhaskell/dist/build"
-, ghcOptStubDir = Flag "/Users/rjhala/research/stack/liquid/liquidhaskell/dist/build",
-, ghcOptCppIncludePath = ["/Users/rjhala/research/stack/liquid/liquidhaskell/dist/build/autogen"
-                         ,"/Users/rjhala/research/stack/liquid/liquidhaskell/dist/build"]
-, ghcOptCppIncludes = ["/Users/rjhala/research/stack/liquid/liquidhaskell/dist/build/autogen/cabal_macros.h"]
-, ghcOptSourcePath = ["/Users/rjhala/research/stack/liquid/liquidhaskell/src"
-                     ,"/Users/rjhala/research/stack/liquid/liquidhaskell/include"
-                     ,"/Users/rjhala/research/stack/liquid/liquidhaskell/dist/build"
-                     ,"/Users/rjhala/research/stack/liquid/liquidhaskell/."
-                     ,"/Users/rjhala/research/stack/liquid/liquidhaskell/dist/build/autogen"],
-
--}
-
 componentName :: Component -> ComponentName
 componentName =
     foldComponent (const CLibName)
