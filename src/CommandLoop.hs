@@ -23,7 +23,7 @@ import qualified Outputable
 import System.Posix.Types (EpochTime)
 import System.Posix.Files (getFileStatus, modificationTime)
 
-import Types (ClientDirective(..), Command(..), CommandExtra(..))
+import Types (debug, ClientDirective(..), Command(..), CommandExtra(..))
 import Info (getIdentifierInfo, getType)
 import Cabal (getPackageGhcOpts)
 
@@ -133,7 +133,6 @@ configSession state clientSend config = do
                       Just cabalConfig -> do
                           liftIO $ setCurrentDirectory . takeDirectory $ cabalConfigPath cabalConfig
                           liftIO $ getPackageGhcOpts $ cabalConfigPath cabalConfig
-
     case eCabalGhcOpts of
       Left e -> return $ Left e
       Right cabalGhcOpts -> do
@@ -143,6 +142,7 @@ configSession state clientSend config = do
   where
     updateDynFlags :: [String] -> GHC.Ghc ()
     updateDynFlags ghcOpts = do
+        liftIO $ debug $ "GHCOPTS: " ++ show ghcOpts
         initialDynFlags <- GHC.getSessionDynFlags
         let updatedDynFlags = initialDynFlags
                 { GHC.log_action = logAction state clientSend
