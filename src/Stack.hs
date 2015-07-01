@@ -16,19 +16,16 @@ import Control.Monad (filterM)
 import Types
 
 -- | This module adds support for `stack`, as follows:
---   1. Figure out if this is a stack project,
+--   1. Figure out if the target-file is in a stack project,
 --   2. Run `stack exec` to extract `StackConfig`
 --   3. The `StackConfig` is used to suitably alter the cabal ConfigFlags in Cabal.hs
 
-debug :: String -> IO ()
-debug msg = appendFile "/Users/rjhala/tmp/hdevtools-debug" $ msg ++ "\n"
 
 -- TODO: Move into Types?
 data StackConfig = StackConfig { stackDist :: FilePath
                                , stackDbs  :: [FilePath]
                                }
                    deriving (Eq, Show)
-
 
 --------------------------------------------------------------------------------
 getStackConfig :: CommandExtra -> IO (Maybe StackConfig)
@@ -61,9 +58,6 @@ pathsToRoot p
   where
     parent      = takeDirectory p
 
--- existsM :: (Monad m) => (a -> m Bool) -> [a] -> m Bool
--- existsM f xs = (not . null) <$> filterM f xs
-
 --------------------------------------------------------------------------------
 getStackDist :: FilePath -> IO FilePath
 --------------------------------------------------------------------------------
@@ -72,11 +66,6 @@ getStackDist p = trim <$> execInPath cmd p
     cmd        = "stack path --dist-dir"
     -- dir        = takeDirectory p
     -- splice     = (dir </>) . trim
-
--- extractPath dist' = do
---   let dist = trim dist'
---   b <- doesDirectoryExist dist
---   return $ if b then Just dist else Nothing
 
 --------------------------------------------------------------------------------
 getStackDbs :: FilePath -> IO [FilePath]
@@ -111,3 +100,7 @@ execInPath :: String -> FilePath -> IO String
 execInPath cmd p = readCreateProcess prc ""
   where
     prc          = (shell cmd) { cwd = Just $ takeDirectory p }
+
+
+debug :: String -> IO ()
+debug msg = appendFile "~/tmp/hdevtools-debug" $ msg ++ "\n"
