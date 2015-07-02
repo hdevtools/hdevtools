@@ -3,8 +3,6 @@ module Stack
         StackConfig (..)
         -- * Run `stack exec` to compute @StackConfig@
       , getStackConfig
-        -- * Temporary logger
-      , debug
       ) where
 
 import Data.Maybe (listToMaybe)
@@ -100,7 +98,3 @@ execInPath :: String -> FilePath -> IO String
 execInPath cmd p = readCreateProcess prc ""
   where
     prc          = (shell cmd) { cwd = Just $ takeDirectory p }
-
-
-debug :: String -> IO ()
-debug msg = appendFile "~/tmp/hdevtools-debug" $ msg ++ "\n"

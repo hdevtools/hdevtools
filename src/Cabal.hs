@@ -99,11 +99,15 @@ allComponentsBy pkg_descr f =
 stackifyFlags :: ConfigFlags -> Maybe StackConfig -> ConfigFlags
 stackifyFlags cfg Nothing   = cfg
 stackifyFlags cfg (Just si) = cfg { configDistPref    = toFlag dist
-                                  , configPackageDBs  = pdbs        }
+                                  , configPackageDBs  = pdbs
+                                  }
     where
-      pdbs                  = Just . SpecificPackageDB <$> stackDbs si
+      pdbs                  = [Nothing, Just GlobalPackageDB] ++ pdbs'
+      pdbs'                 = Just . SpecificPackageDB <$> stackDbs si
       dist                  = stackDist si
 
+-- via: https://groups.google.com/d/msg/haskell-stack/8HJ6DHAinU0/J68U6AXTsasJ
+-- cabal configure --package-db=clear --package-db=global --package-db=$(stack path --snapshot-pkg-db) --package-db=$(stack path --local-pkg-db)
 
 getPackageGhcOpts :: FilePath -> Maybe StackConfig -> IO (Either String [String])
 getPackageGhcOpts path mbStack = do
@@ -129,7 +133,6 @@ getPackageGhcOpts path mbStack = do
                              return $ cfgFlags'
                                           { configPackageDBs = [Just sandboxPackageDb]
                                           }
-
         localBuildInfo <- configure (genPkgDescr, emptyHookedBuildInfo) cfgFlags
         let pkgDescr = localPkgDescr localBuildInfo
         let baseDir = fst . splitFileName $ path
