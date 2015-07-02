@@ -7,6 +7,7 @@ module Stack
 
 import Data.Maybe (listToMaybe)
 import Data.Char (isSpace)
+import Control.Applicative((<$>), (<*>))
 import System.Process
 import System.FilePath
 import System.Directory

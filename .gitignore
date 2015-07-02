@@ -2,3 +2,4 @@
 .cabal-sandbox
 cabal.sandbox.config
 *.sw[a-z]
+.stack-work/
