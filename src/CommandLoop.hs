@@ -65,7 +65,7 @@ newConfig cmdExtra = do
     mbCabalConfig <- traverse mkCabalConfig $ ceCabalConfig cmdExtra
     mbStackConfig <- getStackConfig cmdExtra
 
-    return $ Config { configGhcOpts = ceGhcOptions cmdExtra
+    return $ Config { configGhcOpts = "-O0" : ceGhcOptions cmdExtra
                     , configCabal = mbCabalConfig
                     , configStack = mbStackConfig
                     }
