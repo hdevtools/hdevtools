@@ -1,7 +1,12 @@
+{-# LANGUAGE CPP #-}
+
 module Main where
 
+#if __GLASGOW_HASKELL__ < 709
+import Data.Traversable (traverse)
+#endif
+
 import Data.Maybe (fromMaybe)
--- import Data.Traversable (Traversable(..))
 import System.Directory (getCurrentDirectory)
 import System.Environment (getProgName)
 import System.IO (hPutStrLn, stderr)
