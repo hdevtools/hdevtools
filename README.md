@@ -3,6 +3,7 @@ hdevtools
 
 Persistent GHC powered background server for FAST Haskell development tools
 
+
 About
 -----
 
@@ -72,6 +73,14 @@ details.
 [Flycheck][5] is a modern batteries-included
 syntax checker for Emacs, and there is a [flycheck-hdevtools][6] checker available.
 
+
+### Atom - [linter][8] ###
+
+There are *two* packages for the [Atom](https://atom.io) editor:
+
++ [linter-hdevtools][8] quickly finds and underlines type errors in Haskell files,
++ [hover-tooltips-hdevtools][9] displays the types of identifiers under the mouse. 
+
 ### Manual Editor Integration for any Editor ###
 
 Most editors allow you to run a `make` command, and will then parse the output
@@ -137,6 +146,16 @@ background process, not your current directory. This can cause problems, and
 therefore it is recommended that you leave the socket file as the default, and
 always run `hdevtools` from the same directory.
 
+You can specify the path to a target file with the `--path` option. This is 
+useful for integration with IDEs that submit a *copy* of the original source
+file (in a temporary directory) to `hdevtools` making it impossible to extract
+the `.cabal` information for the file's project. In such cases, you can run as:
+
+    $ hdevtools check -p /path/to/file.hs /tmp/file.hs
+
+and `hdevtools` will use the given path to obtain the `.cabal` information.
+
+
 ### Specifying GHC Options ###
 
 For most non-trivial projects, you will need to tell `hdevtools` about
@@ -182,3 +201,7 @@ client-server architecture it is much faster.
 [4]: http://www.mew.org/~kazu/proj/ghc-mod/en/
 [5]: https://github.com/flycheck/flycheck
 [6]: https://github.com/flycheck/flycheck-hdevtools
+[7]: https://atom.io
+[8]: https://atom.io/packages/linter-hdevtools
+[9]: https://atom.io/packages/hover-tooltips-hdevtools
+

@@ -26,6 +26,7 @@ import System.Posix.Files (getFileStatus, modificationTime)
 import Types (ClientDirective(..), Command(..), CommandExtra(..))
 import Info (getIdentifierInfo, getType)
 import Cabal (getPackageGhcOpts)
+import Stack
 
 type ClientSend = ClientDirective -> IO ()
 
@@ -54,17 +55,20 @@ mkCabalConfig path = do
 
 data Config = Config
     { configGhcOpts :: [String]
-    , configCabal :: Maybe CabalConfig
+    , configCabal   :: Maybe CabalConfig
+    , configStack   :: Maybe StackConfig
     }
     deriving Eq
 
 newConfig :: CommandExtra -> IO Config
 newConfig cmdExtra = do
     mbCabalConfig <- traverse mkCabalConfig $ ceCabalConfig cmdExtra
-    return $ Config { configGhcOpts = ceGhcOptions cmdExtra
-                    , configCabal = mbCabalConfig
-                    }
+    mbStackConfig <- getStackConfig cmdExtra
 
+    return $ Config { configGhcOpts = "-O0" : ceGhcOptions cmdExtra
+                    , configCabal = mbCabalConfig
+                    , configStack = mbStackConfig
+                    }
 
 type CommandObj = (Command, Config)
 
@@ -132,22 +136,21 @@ configSession state clientSend config = do
                           return $ Right []
                       Just cabalConfig -> do
                           liftIO $ setCurrentDirectory . takeDirectory $ cabalConfigPath cabalConfig
-                          liftIO $ getPackageGhcOpts $ cabalConfigPath cabalConfig
-
+                          liftIO $ getPackageGhcOpts (cabalConfigPath cabalConfig) (configStack config)
     case eCabalGhcOpts of
       Left e -> return $ Left e
       Right cabalGhcOpts -> do
-          let allGhcOpts = cabalGhcOpts ++ (configGhcOpts config)
-          GHC.gcatch (fmap Right $ updateDynFlags allGhcOpts)
+          let allGhcOpts = cabalGhcOpts ++ configGhcOpts config
+          GHC.gcatch (Right <$> updateDynFlags allGhcOpts)
                      (fmap Left . handleGhcError)
   where
     updateDynFlags :: [String] -> GHC.Ghc ()
     updateDynFlags ghcOpts = do
         initialDynFlags <- GHC.getSessionDynFlags
         let updatedDynFlags = initialDynFlags
-                { GHC.log_action = logAction state clientSend
-                , GHC.ghcLink = GHC.NoLink
-                , GHC.hscTarget = GHC.HscInterpreted
+                { GHC.log_action    = logAction state clientSend
+                , GHC.ghcLink       = GHC.NoLink
+                , GHC.hscTarget     = GHC.HscInterpreted
                 }
         (finalDynFlags, _, _) <- GHC.parseDynamicFlags updatedDynFlags (map GHC.noLoc ghcOpts)
         _ <- GHC.setSessionDynFlags finalDynFlags
@@ -155,7 +158,6 @@ configSession state clientSend config = do
 
     handleGhcError :: GHC.GhcException -> GHC.Ghc String
     handleGhcError e = return $ GHC.showGhcException e ""
-
 
 runCommand :: IORef State -> ClientSend -> Command -> GHC.Ghc ()
 runCommand _ clientSend (CmdCheck file) = do

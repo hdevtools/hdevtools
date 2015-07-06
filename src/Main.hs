@@ -1,7 +1,12 @@
+{-# LANGUAGE CPP #-}
+
 module Main where
 
+#if __GLASGOW_HASKELL__ < 709
+import Data.Traversable (traverse)
+#endif
+
 import Data.Maybe (fromMaybe)
-import Data.Traversable (Traversable(..))
 import System.Directory (getCurrentDirectory)
 import System.Environment (getProgName)
 import System.IO (hPutStrLn, stderr)
@@ -15,9 +20,9 @@ import Server (startServer, createListenSocket)
 import Types (Command(..), CommandExtra(..), emptyCommandExtra)
 
 absoluteFilePath :: FilePath -> IO FilePath
-absoluteFilePath path = if isAbsolute path then return path else do
+absoluteFilePath p = if isAbsolute p then return p else do
     dir <- getCurrentDirectory
-    return $ dir </> path
+    return $ dir </> p
 
 
 defaultSocketFile :: FilePath
@@ -31,20 +36,31 @@ fileArg args@(Check {}) = Just $ file args
 fileArg args@(Info  {}) = Just $ file args
 fileArg args@(Type  {}) = Just $ file args
 
+pathArg' :: HDevTools -> Maybe String
+pathArg' (Admin {})      = Nothing
+pathArg' (ModuleFile {}) = Nothing
+pathArg' args@(Check {}) = path args
+pathArg' args@(Info  {}) = path args
+pathArg' args@(Type  {}) = path args
+
+pathArg :: HDevTools -> Maybe String
+pathArg args = case pathArg' args of
+                Just x  -> Just x
+                Nothing -> fileArg args
 
 main :: IO ()
 main = do
     args <- loadHDevTools
-    dir  <- maybe getCurrentDirectory (return . takeDirectory) $ fileArg args
+    let argPath = pathArg args
+    dir  <- maybe getCurrentDirectory (return . takeDirectory) argPath
     mCabalFile <- findCabalFile dir >>= traverse absoluteFilePath
     let extra = emptyCommandExtra
-                    { ceGhcOptions = ghcOpts args
+                    { ceGhcOptions  = ghcOpts args
                     , ceCabalConfig = mCabalFile
+                    , cePath        = argPath
                     }
-
     let defaultSocketPath = maybe "" takeDirectory mCabalFile </> defaultSocketFile
     let sock = fromMaybe defaultSocketPath $ socket args
-
     case args of
         Admin {} -> doAdmin sock args extra
         Check {} -> doCheck sock args extra
