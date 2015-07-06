@@ -15,12 +15,15 @@ import System.Process
 import System.FilePath
 import System.Directory
 import Control.Monad (filterM)
+import Control.Exception
 import Types
 
 -- | This module adds support for `stack`, as follows:
 --   1. Figure out if the target-file is in a stack project,
---   2. Run `stack exec` to extract `StackConfig`
---   3. The `StackConfig` is used to suitably alter the cabal ConfigFlags in Cabal.hs
+--   2. If `stack` in available in PATH, run `stack exec` to extract
+--      `StackConfig`
+--   3. The `StackConfig` is used to suitably alter the cabal ConfigFlags in
+--      Cabal.hs
 
 
 -- TODO: Move into Types?
@@ -41,9 +44,9 @@ getStackConfig' p = do
   mbYaml <- getStackYaml p
   case mbYaml of
     Nothing -> return Nothing
-    Just _  -> jStackConfig <$> getStackDist p <*> getStackDbs p
-  where
-    jStackConfig x y = Just (StackConfig x y)
+    Just _  -> do mdbs <- getStackDbs p
+                  mdst <- getStackDist p
+                  return $ StackConfig <$> mdst <*> mdbs
 
 --------------------------------------------------------------------------------
 getStackYaml :: FilePath -> IO (Maybe FilePath)
@@ -61,18 +64,21 @@ pathsToRoot p
     parent      = takeDirectory p
 
 --------------------------------------------------------------------------------
-getStackDist :: FilePath -> IO FilePath
+getStackDist :: FilePath -> IO (Maybe FilePath)
 --------------------------------------------------------------------------------
-getStackDist p = trim <$> execInPath cmd p
+getStackDist p = (trim <$>) <$> execInPath cmd p
   where
     cmd        = "stack path --dist-dir"
     -- dir        = takeDirectory p
     -- splice     = (dir </>) . trim
 
 --------------------------------------------------------------------------------
-getStackDbs :: FilePath -> IO [FilePath]
+getStackDbs :: FilePath -> IO (Maybe [FilePath])
 --------------------------------------------------------------------------------
-getStackDbs p = execInPath cmd p >>= extractDbs
+getStackDbs p = do mpp <- execInPath cmd p
+                   case mpp of
+                       Just pp -> Just <$> extractDbs pp
+                       Nothing -> return Nothing
   where
     cmd       = "stack --verbosity quiet exec printenv GHC_PACKAGE_PATH"
 
@@ -98,7 +104,14 @@ trim = f . f
    where
      f = reverse . dropWhile isSpace
 
-execInPath :: String -> FilePath -> IO String
-execInPath cmd p = readCreateProcess prc ""
+execInPath :: String -> FilePath -> IO (Maybe String)
+execInPath cmd p = do
+    eIOEstr <- (try $ readCreateProcess prc "" :: IO (Either IOError String))
+    return $ case eIOEstr of
+        Right s -> Just s
+        -- This error is most likely "/bin/sh: stack: command not found"
+        -- which is caused by the package containing a stack.yaml file but
+        -- no stack command is in the PATH.
+        Left _  -> Nothing
   where
     prc          = (shell cmd) { cwd = Just $ takeDirectory p }

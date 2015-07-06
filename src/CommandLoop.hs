@@ -65,7 +65,9 @@ data Config = Config
 newConfig :: CommandExtra -> IO Config
 newConfig cmdExtra = do
     mbCabalConfig <- traverse mkCabalConfig $ ceCabalConfig cmdExtra
+    putStrLn "getting stack config"
     mbStackConfig <- getStackConfig cmdExtra
+    putStrLn $ "got stack config: " ++ show mbStackConfig
 
     return $ Config { configGhcOpts = "-O0" : ceGhcOptions cmdExtra
                     , configCabal = mbCabalConfig
