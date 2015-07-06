@@ -5,7 +5,7 @@ module Cabal
   ) where
 
 #ifdef ENABLE_CABAL
-
+import Stack
 import Control.Exception (IOException, catch)
 import Data.Char (isSpace)
 import Data.List (foldl', nub, sort, find, isPrefixOf, isSuffixOf)
@@ -39,6 +39,7 @@ import Distribution.Version (Version(..))
 import System.IO.Error (ioeGetErrorString)
 import System.Directory (doesFileExist, getDirectoryContents)
 import System.FilePath (takeDirectory, splitFileName, (</>))
+
 
 componentName :: Component -> ComponentName
 componentName =
@@ -95,22 +96,33 @@ allComponentsBy pkg_descr f =
                     , benchmarkEnabled bm ]
 #endif
 
+stackifyFlags :: ConfigFlags -> Maybe StackConfig -> ConfigFlags
+stackifyFlags cfg Nothing   = cfg
+stackifyFlags cfg (Just si) = cfg { configDistPref    = toFlag dist
+                                  , configPackageDBs  = pdbs
+                                  }
+    where
+      pdbs                  = [Nothing, Just GlobalPackageDB] ++ pdbs'
+      pdbs'                 = Just . SpecificPackageDB <$> stackDbs si
+      dist                  = stackDist si
 
-getPackageGhcOpts :: FilePath -> IO (Either String [String])
-getPackageGhcOpts path = do
+-- via: https://groups.google.com/d/msg/haskell-stack/8HJ6DHAinU0/J68U6AXTsasJ
+-- cabal configure --package-db=clear --package-db=global --package-db=$(stack path --snapshot-pkg-db) --package-db=$(stack path --local-pkg-db)
+
+getPackageGhcOpts :: FilePath -> Maybe StackConfig -> IO (Either String [String])
+getPackageGhcOpts path mbStack = do
     getPackageGhcOpts' `catch` (\e -> do
         return $ Left $ "Cabal error: " ++ (ioeGetErrorString (e :: IOException)))
   where
     getPackageGhcOpts' :: IO (Either String [String])
     getPackageGhcOpts' = do
         genPkgDescr <- readPackageDescription silent path
-
-        let cfgFlags' = (defaultConfigFlags defaultProgramConfiguration)
+        let cfgFlags'' = (defaultConfigFlags defaultProgramConfiguration)
                             { configDistPref = toFlag $ takeDirectory path </> "dist"
                             -- TODO: figure out how to find out this flag
                             , configUserInstall = toFlag True
                             }
-
+        let cfgFlags'  = stackifyFlags cfgFlags'' mbStack
         let sandboxConfig = takeDirectory path </> "cabal.sandbox.config"
         exists <- doesFileExist sandboxConfig
 
@@ -121,16 +133,13 @@ getPackageGhcOpts path = do
                              return $ cfgFlags'
                                           { configPackageDBs = [Just sandboxPackageDb]
                                           }
-
         localBuildInfo <- configure (genPkgDescr, emptyHookedBuildInfo) cfgFlags
-
         let pkgDescr = localPkgDescr localBuildInfo
         let baseDir = fst . splitFileName $ path
         case getGhcVersion localBuildInfo of
             Nothing -> return $ Left "GHC is not configured"
             Just ghcVersion -> do
                 let mbLibName = pkgLibName pkgDescr
-
                 let ghcOpts' = foldl' mappend mempty $ map (getComponentGhcOptions localBuildInfo) $ flip allComponentsBy (\c -> c) . localPkgDescr $ localBuildInfo
 #if __GLASGOW_HASKELL__ >= 709
                     -- FIX bug in GhcOptions' `mappend`
@@ -139,7 +148,6 @@ getPackageGhcOpts path = do
                                        , ghcOptPackages = overNubListR (filter (\(_, pkgId, _) -> Just (pkgName pkgId) /= mbLibName)) $ (ghcOptPackages ghcOpts')
                                        , ghcOptSourcePath = overNubListR (map (baseDir </>)) (ghcOptSourcePath ghcOpts')
                                        }
-
                 putStrLn "configuring"
                 (ghcInfo,_,_) <- GHC.configure silent Nothing Nothing defaultProgramConfiguration
 
