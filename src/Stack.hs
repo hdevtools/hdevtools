@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 module Stack
       ( -- * The bits of information needed from `stack`
         StackConfig (..)
@@ -7,7 +8,9 @@ module Stack
 
 import Data.Maybe (listToMaybe)
 import Data.Char (isSpace)
+#if __GLASGOW_HASKELL__ < 709
 import Control.Applicative((<$>), (<*>))
+#endif
 import System.Process
 import System.FilePath
 import System.Directory

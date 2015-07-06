@@ -138,7 +138,7 @@ getPackageGhcOpts path mbStack = do
         let baseDir = fst . splitFileName $ path
         case getGhcVersion localBuildInfo of
             Nothing -> return $ Left "GHC is not configured"
-            Just ghcVersion -> do
+            Just _  -> do
                 let mbLibName = pkgLibName pkgDescr
                 let ghcOpts' = foldl' mappend mempty $ map (getComponentGhcOptions localBuildInfo) $ flip allComponentsBy (\c -> c) . localPkgDescr $ localBuildInfo
 #if __GLASGOW_HASKELL__ >= 709
