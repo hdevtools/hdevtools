@@ -10,13 +10,15 @@ module Types
 import System.Exit (ExitCode)
 
 data CommandExtra = CommandExtra
-  { ceGhcOptions :: [String]
+  { ceGhcOptions  :: [String]
   , ceCabalConfig :: Maybe FilePath
+  , cePath        :: Maybe FilePath
   } deriving (Read, Show)
 
 emptyCommandExtra :: CommandExtra
-emptyCommandExtra = CommandExtra { ceGhcOptions = []
+emptyCommandExtra = CommandExtra { ceGhcOptions  = []
                                  , ceCabalConfig = Nothing
+                                 , cePath        = Nothing
                                  }
 
 data ServerDirective
