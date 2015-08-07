@@ -81,5 +81,7 @@ executable hdevtools
     cpp-options:       -DENABLE_CABAL
 
   if impl(ghc >= 7.9)
-    build-depends:     Cabal >= 1.22
+    build-depends:     Cabal >= 1.22,
+                       bin-package-db
+
     cpp-options:       -DENABLE_CABAL
