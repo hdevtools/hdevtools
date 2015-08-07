@@ -11,6 +11,7 @@ import Control.Monad (when)
 import Data.IORef
 import Data.List (find)
 #if __GLASGOW_HASKELL__ < 709
+import Control.Applicative ((<$>))
 import Data.Traversable (traverse)
 #endif
 import MonadUtils (MonadIO, liftIO)
