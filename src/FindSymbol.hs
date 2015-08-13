@@ -76,9 +76,9 @@ findSymbolInPackages symbol =
 		   <$> GHC.getSessionDynFlags
 #else
       exposedModuleNames = do
-	 dynFlags <- GHC.getSessionDynFlags
-	 pkgConfigs <- liftIO $ PKG.readPackageConfigs dynFlags
-	 return $ map exposedName (concatMap exposedModules pkgConfigs)
+        dynFlags <- GHC.getSessionDynFlags
+        pkgConfigs <- liftIO $ PKG.readPackageConfigs dynFlags
+        return $ map exposedName (concatMap exposedModules pkgConfigs)
 #endif
 
       exposedModules pkg = if PKG.exposed pkg then PKG.exposedModules pkg else []
