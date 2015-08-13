@@ -192,8 +192,7 @@ would pass to GHCi.
 Credits
 -------
 
-`hdevtools` was inspired by [ghcmod][4], but has the advantage that due to its
-client-server architecture it is much faster.
+`hdevtools` was inspired by [ghcmod][4].
 
 [1]: http://hackage.haskell.org/package/hdevtools
 [2]: https://github.com/scrooloose/syntastic
@@ -204,4 +203,3 @@ client-server architecture it is much faster.
 [7]: https://atom.io
 [8]: https://atom.io/packages/linter-hdevtools
 [9]: https://atom.io/packages/hover-tooltips-hdevtools
-
