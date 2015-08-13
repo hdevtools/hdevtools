@@ -10,6 +10,7 @@ import Control.Exception (IOException, catch)
 import Data.Char (isSpace)
 import Data.List (foldl', nub, sort, find, isPrefixOf, isSuffixOf)
 #if __GLASGOW_HASKELL__ < 709
+import Control.Applicative ((<$>))
 import Data.Monoid (Monoid(..))
 #endif
 import Distribution.Package (PackageIdentifier(..), PackageName)
@@ -138,10 +139,11 @@ getPackageGhcOpts path mbStack = do
         let baseDir = fst . splitFileName $ path
         case getGhcVersion localBuildInfo of
             Nothing -> return $ Left "GHC is not configured"
+
+#if __GLASGOW_HASKELL__ >= 709
             Just _  -> do
                 let mbLibName = pkgLibName pkgDescr
                 let ghcOpts' = foldl' mappend mempty $ map (getComponentGhcOptions localBuildInfo) $ flip allComponentsBy (\c -> c) . localPkgDescr $ localBuildInfo
-#if __GLASGOW_HASKELL__ >= 709
                     -- FIX bug in GhcOptions' `mappend`
                     ghcOpts = ghcOpts' { ghcOptExtra = overNubListR (filter (/= "-Werror")) $ ghcOptExtra ghcOpts'
                                        , ghcOptPackageDBs = sort $ nub (ghcOptPackageDBs ghcOpts')
@@ -153,6 +155,10 @@ getPackageGhcOpts path mbStack = do
 
                 return $ Right $ renderGhcOptions ghcInfo ghcOpts
 #else
+            Just ghcVersion -> do
+                let mbLibName = pkgLibName pkgDescr
+                let ghcOpts' = foldl' mappend mempty $ map (getComponentGhcOptions localBuildInfo) $ flip allComponentsBy (\c -> c) . localPkgDescr $ localBuildInfo
+
                     ghcOpts = ghcOpts' { ghcOptExtra = filter (/= "-Werror") $ nub $ ghcOptExtra ghcOpts'
                                        , ghcOptPackages = filter (\(_, pkgId) -> Just (pkgName pkgId) /= mbLibName) $ nub (ghcOptPackages ghcOpts')
                                        , ghcOptSourcePath = map (baseDir </>) (ghcOptSourcePath ghcOpts')
