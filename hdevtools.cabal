@@ -1,5 +1,5 @@
 name:                hdevtools
-version:             0.1.2.0
+version:             0.1.2.1
 synopsis:            Persistent GHC powered background server for FAST haskell development tools
 description:
     'hdevtools' is a backend for text editor plugins, to allow for things such as
@@ -52,6 +52,7 @@ executable hdevtools
                        CommandArgs,
                        CommandLoop,
                        Daemonize,
+                       FindSymbol,
                        Info,
                        Main,
                        Server,
