@@ -144,23 +144,3 @@ execInPath cmd p = do
   where
     prc          = (shell cmd) { cwd = Just $ takeDirectory p }
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
---

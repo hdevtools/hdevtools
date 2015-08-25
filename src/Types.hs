@@ -4,7 +4,6 @@ module Types
     , Command(..)
     , CommandExtra(..)
     , emptyCommandExtra
-    , debug
     ) where
 
 import System.Exit (ExitCode)
@@ -41,7 +40,3 @@ data Command
     | CmdType FilePath (Int, Int)
     | CmdFindSymbol String [String]
     deriving (Read, Show)
-
-
-debug :: String -> IO ()
-debug msg = appendFile "/Users/rjhala/tmp/hdevtools-debug-master" $ msg ++ "\n"

@@ -26,7 +26,7 @@ import qualified Outputable
 import System.Posix.Types (EpochTime)
 import System.Posix.Files (getFileStatus, modificationTime)
 
-import Types (debug, ClientDirective(..), Command(..), CommandExtra(..))
+import Types (ClientDirective(..), Command(..), CommandExtra(..))
 import Info (getIdentifierInfo, getType)
 import FindSymbol (findSymbol)
 import Cabal (getPackageGhcOpts)
@@ -150,7 +150,6 @@ configSession state clientSend config = do
   where
     updateDynFlags :: [String] -> GHC.Ghc ()
     updateDynFlags ghcOpts = do
-        liftIO $ debug $ "GHCOPTS: " ++ show ghcOpts
         initialDynFlags <- GHC.getSessionDynFlags
         let updatedDynFlags = initialDynFlags
                 { GHC.log_action    = logAction state clientSend
