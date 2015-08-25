@@ -9,8 +9,9 @@ module CommandLoop
 
 import Control.Monad (when)
 import Data.IORef
-import Data.List (find)
+import Data.List (find, intercalate)
 #if __GLASGOW_HASKELL__ < 709
+import Control.Applicative ((<$>))
 import Data.Traversable (traverse)
 #endif
 import MonadUtils (MonadIO, liftIO)
@@ -27,6 +28,7 @@ import System.Posix.Files (getFileStatus, modificationTime)
 
 import Types (debug, ClientDirective(..), Command(..), CommandExtra(..))
 import Info (getIdentifierInfo, getType)
+import FindSymbol (findSymbol)
 import Cabal (getPackageGhcOpts)
 import Stack
 
@@ -230,6 +232,21 @@ runCommand state clientSend (CmdType file (line, col)) = do
             , show endCol , " "
             , "\"", t, "\""
             ]
+runCommand state clientSend (CmdFindSymbol symbol files) = do
+    result <- withWarnings state False $ findSymbol symbol files
+    case result of
+        []      -> liftIO $ mapM_ clientSend
+                       [ ClientStderr $ "Couldn't find modules containing '" ++ symbol ++ "'"
+                       , ClientExit (ExitFailure 1)
+                       ]
+        modules -> liftIO $ mapM_ clientSend
+                       [ ClientStdout (formatModules modules)
+                       , ClientExit ExitSuccess
+                       ]
+    where
+    formatModules = intercalate "\n"
+
+
 
 #if __GLASGOW_HASKELL__ >= 706
 logAction :: IORef State -> ClientSend -> GHC.DynFlags -> GHC.Severity -> GHC.SrcSpan -> Outputable.PprStyle -> ErrUtils.MsgDoc -> IO ()

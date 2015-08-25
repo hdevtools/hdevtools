@@ -1,5 +1,5 @@
 name:                hdevtools
-version:             0.1.1.9
+version:             0.1.2.1
 synopsis:            Persistent GHC powered background server for FAST haskell development tools
 description:
     'hdevtools' is a backend for text editor plugins, to allow for things such as
@@ -52,6 +52,7 @@ executable hdevtools
                        CommandArgs,
                        CommandLoop,
                        Daemonize,
+                       FindSymbol,
                        Info,
                        Main,
                        Server,
@@ -81,5 +82,7 @@ executable hdevtools
     cpp-options:       -DENABLE_CABAL
 
   if impl(ghc >= 7.9)
-    build-depends:     Cabal >= 1.22
+    build-depends:     Cabal >= 1.22,
+                       bin-package-db
+
     cpp-options:       -DENABLE_CABAL

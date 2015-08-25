@@ -35,6 +35,7 @@ fileArg (ModuleFile {}) = Nothing
 fileArg args@(Check {}) = Just $ file args
 fileArg args@(Info  {}) = Just $ file args
 fileArg args@(Type  {}) = Just $ file args
+fileArg (FindSymbol {}) = Nothing
 
 pathArg' :: HDevTools -> Maybe String
 pathArg' (Admin {})      = Nothing
@@ -42,6 +43,7 @@ pathArg' (ModuleFile {}) = Nothing
 pathArg' args@(Check {}) = path args
 pathArg' args@(Info  {}) = path args
 pathArg' args@(Type  {}) = path args
+pathArg' (FindSymbol {}) = Nothing
 
 pathArg :: HDevTools -> Maybe String
 pathArg args = case pathArg' args of
@@ -67,6 +69,7 @@ main = do
         ModuleFile {} -> doModuleFile sock args extra
         Info {} -> doInfo sock args extra
         Type {} -> doType sock args extra
+        FindSymbol {} -> doFindSymbol sock args extra
 
 doAdmin :: FilePath -> HDevTools -> CommandExtra -> IO ()
 doAdmin sock args _extra
@@ -108,3 +111,7 @@ doInfo = doFileCommand "info" $
 doType :: FilePath -> HDevTools -> CommandExtra -> IO ()
 doType = doFileCommand "type" $
     \args -> CmdType (file args) (line args, col args)
+
+doFindSymbol :: FilePath -> HDevTools -> CommandExtra -> IO ()
+doFindSymbol sock args extra =
+    serverCommand sock (CmdFindSymbol (symbol args) (files args)) extra
