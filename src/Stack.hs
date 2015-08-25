@@ -10,7 +10,12 @@ import Data.Maybe (listToMaybe)
 import Data.Char (isSpace)
 #if __GLASGOW_HASKELL__ < 709
 import Control.Applicative((<$>), (<*>))
+import System.IO
 #endif
+
+
+
+
 import System.Process
 import System.FilePath
 import System.Directory
@@ -104,9 +109,32 @@ trim = f . f
    where
      f = reverse . dropWhile isSpace
 
+#if __GLASGOW_HASKELL__ < 709
 execInPath :: String -> FilePath -> IO (Maybe String)
 execInPath cmd p = do
-    eIOEstr <- (try $ readCreateProcess prc "" :: IO (Either IOError String))
+    eIOEstr <- try $ createProcess prc :: IO (Either IOError ProcH)
+    case eIOEstr of
+        Right (_, Just h, _, _)  -> Just <$> getClose h
+        Right (_, Nothing, _, _) -> return Nothing
+        -- This error is most likely "/bin/sh: stack: command not found"
+        -- which is caused by the package containing a stack.yaml file but
+        -- no stack command is in the PATH.
+        Left _  -> return Nothing
+  where
+    prc          = (shell cmd) { cwd = Just $ takeDirectory p }
+
+getClose :: Handle -> IO String
+getClose h = do
+  str <- hGetContents h
+  hClose h
+  return str
+
+type ProcH = (Maybe Handle, Maybe Handle, Maybe Handle, ProcessHandle)
+
+#else
+execInPath :: String -> FilePath -> IO (Maybe String)
+execInPath cmd p = do
+    eIOEstr <- try $ readCreateProcess prc "" :: IO (Either IOError String)
     return $ case eIOEstr of
         Right s -> Just s
         -- This error is most likely "/bin/sh: stack: command not found"
@@ -115,3 +143,24 @@ execInPath cmd p = do
         Left _  -> Nothing
   where
     prc          = (shell cmd) { cwd = Just $ takeDirectory p }
+#endif
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+--
