@@ -8,13 +8,11 @@ module Stack
 
 import Data.Maybe (listToMaybe)
 import Data.Char (isSpace)
+
 #if __GLASGOW_HASKELL__ < 709
 import Control.Applicative((<$>), (<*>))
 import System.IO
 #endif
-
-
-
 
 import System.Process
 import System.FilePath
@@ -22,6 +20,7 @@ import System.Directory
 import Control.Monad (filterM)
 import Control.Exception
 import Types
+
 
 -- | This module adds support for `stack`, as follows:
 --   1. Figure out if the target-file is in a stack project,
@@ -130,6 +129,9 @@ getClose h = do
   return str
 
 type ProcH = (Maybe Handle, Maybe Handle, Maybe Handle, ProcessHandle)
+
+-- Not deleting this because this is likely more robust than the above! (but
+-- only works on process-1.2.3.0 onwards
 
 #else
 execInPath :: String -> FilePath -> IO (Maybe String)
