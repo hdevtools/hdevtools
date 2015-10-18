@@ -122,10 +122,11 @@ getPackageGhcOpts path mbStack opts = do
     getPackageGhcOpts' :: IO (Either String [String])
     getPackageGhcOpts' = do
         genPkgDescr <- readPackageDescription silent path
+        distDir     <- getDistDir
 
         let programCfg = defaultProgramConfiguration
         let initCfgFlags = (defaultConfigFlags programCfg)
-                             { configDistPref = toFlag $ takeDirectory path </> "dist"
+                             { configDistPref = toFlag distDir
                              -- TODO: figure out how to find out this flag
                              , configUserInstall = toFlag True
                              }
@@ -176,6 +177,14 @@ getPackageGhcOpts path mbStack opts = do
                                        }
                 return $ Right $ renderGhcOptions ghcVersion ghcOpts
 #endif
+
+    -- returns the right 'dist' directory in the case of a sandbox
+    getDistDir = do
+        let dir = takeDirectory path </> "dist"
+        contents <- getDirectoryContents dir
+        return $ case find ("dist-sandbox-" `isPrefixOf`) contents of
+                      Just sbdir -> dir </> sbdir
+                      Nothing    -> dir
 
 pkgLibName :: PackageDescription -> Maybe PackageName
 pkgLibName pkgDescr = if hasLibrary pkgDescr
