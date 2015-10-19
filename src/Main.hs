@@ -60,6 +60,7 @@ main = do
                     { ceGhcOptions  = ghcOpts args
                     , ceCabalConfig = mCabalFile
                     , cePath        = argPath
+                    , ceCabalOptions = cabalOpts args
                     }
     let defaultSocketPath = maybe "" takeDirectory mCabalFile </> defaultSocketFile
     let sock = fromMaybe defaultSocketPath $ socket args

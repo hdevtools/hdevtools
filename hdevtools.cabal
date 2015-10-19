@@ -71,6 +71,7 @@ executable hdevtools
                        network,
                        process >= 1.2.3.0,
                        time,
+                       transformers,
                        unix
 
   if impl(ghc == 7.6.*)

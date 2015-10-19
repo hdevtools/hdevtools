@@ -53,17 +53,20 @@ data HDevTools
     | Check
         { socket  :: Maybe FilePath
         , ghcOpts :: [String]
+        , cabalOpts :: [String]
         , path    :: Maybe String
         , file    :: String
         }
     | ModuleFile
         { socket  :: Maybe FilePath
         , ghcOpts :: [String]
+        , cabalOpts :: [String]
         , module_ :: String
         }
     | Info
         { socket     :: Maybe FilePath
         , ghcOpts    :: [String]
+        , cabalOpts  :: [String]
         , path       :: Maybe String
         , file       :: String
         , identifier :: String
@@ -71,6 +74,7 @@ data HDevTools
     | Type
         { socket  :: Maybe FilePath
         , ghcOpts :: [String]
+        , cabalOpts  :: [String]
         , path    :: Maybe String
         , file    :: String
         , line    :: Int
@@ -79,6 +83,7 @@ data HDevTools
     | FindSymbol
         { socket :: Maybe FilePath
         , ghcOpts :: [String]
+        , cabalOpts :: [String]
         , symbol :: String
         , files :: [String]
         }
@@ -97,6 +102,7 @@ dummyCheck :: HDevTools
 dummyCheck = Check
     { socket  = Nothing
     , ghcOpts = []
+    , cabalOpts = []
     , path    = Nothing
     , file    = ""
     }
@@ -105,6 +111,7 @@ dummyModuleFile :: HDevTools
 dummyModuleFile = ModuleFile
     { socket  = Nothing
     , ghcOpts = []
+    , cabalOpts = []
     , module_ = ""
     }
 
@@ -112,6 +119,7 @@ dummyInfo :: HDevTools
 dummyInfo = Info
     { socket     = Nothing
     , ghcOpts    = []
+    , cabalOpts = []
     , path       = Nothing
     , file       = ""
     , identifier = ""
@@ -121,6 +129,7 @@ dummyType :: HDevTools
 dummyType = Type
     { socket  = Nothing
     , ghcOpts = []
+    , cabalOpts = []
     , path    = Nothing
     , file    = ""
     , line    = 0
@@ -131,6 +140,7 @@ dummyFindSymbol :: HDevTools
 dummyFindSymbol = FindSymbol
     { socket = Nothing
     , ghcOpts = []
+    , cabalOpts = []
     , symbol = ""
     , files = []
     }
@@ -148,6 +158,11 @@ check :: Annotate Ann
 check = record dummyCheck
     [ socket   := def += typFile      += help "socket file to use"
     , ghcOpts  := def += typ "OPTION" += help "ghc options"
+#ifdef ENABLE_CABAL
+    , cabalOpts := def += typ "OPTION"  += help "cabal options"
+#else
+    , cabalOpts := def += ignore
+#endif
     , path     := def += typFile      += help "path to target file"
     , file     := def += typFile      += argPos 0 += opt ""
     ] += help "Check a haskell source file for errors and warnings"
@@ -156,6 +171,11 @@ moduleFile :: Annotate Ann
 moduleFile = record dummyModuleFile
     [ socket   := def += typFile += help "socket file to use"
     , ghcOpts  := def += typ "OPTION" += help "ghc options"
+#ifdef ENABLE_CABAL
+    , cabalOpts := def += typ "OPTION"  += help "cabal options"
+#else
+    , cabalOpts := def += ignore
+#endif
     , module_  := def += typ "MODULE" += argPos 0
     ] += help "Get the haskell source file corresponding to a module name"
 
@@ -163,6 +183,11 @@ info :: Annotate Ann
 info = record dummyInfo
     [ socket     := def += typFile      += help "socket file to use"
     , ghcOpts    := def += typ "OPTION" += help "ghc options"
+#ifdef ENABLE_CABAL
+    , cabalOpts := def += typ "OPTION"  += help "cabal options"
+#else
+    , cabalOpts := def += ignore
+#endif
     , path       := def += typFile      += help "path to target file"
     , file       := def += typFile      += argPos 0 += opt ""
     , identifier := def += typ "IDENTIFIER" += argPos 1
@@ -172,6 +197,11 @@ type_ :: Annotate Ann
 type_ = record dummyType
     [ socket   := def += typFile += help "socket file to use"
     , ghcOpts  := def += typ "OPTION" += help "ghc options"
+#ifdef ENABLE_CABAL
+    , cabalOpts := def += typ "OPTION"  += help "cabal options"
+#else
+    , cabalOpts := def += ignore
+#endif
     , path     := def += typFile      += help "path to target file"
     , file     := def += typFile      += argPos 0 += opt ""
     , line     := def += typ "LINE"   += argPos 1
@@ -182,6 +212,11 @@ findSymbol :: Annotate Ann
 findSymbol = record dummyFindSymbol
     [ socket   := def += typFile += help "socket file to use"
     , ghcOpts  := def += typ "OPTION" += help "ghc options"
+#ifdef ENABLE_CABAL
+    , cabalOpts := def += typ "OPTION"  += help "cabal options"
+#else
+    , cabalOpts := def += ignore
+#endif
     , symbol   := def += typ "SYMBOL" += argPos 0
     , files    := def += typFile += args
     ] += help "List the modules where the given symbol could be found"
