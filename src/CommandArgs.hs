@@ -56,6 +56,7 @@ data HDevTools
         , cabalOpts :: [String]
         , path    :: Maybe String
         , file    :: String
+        , json    :: Bool
         }
     | ModuleFile
         { socket  :: Maybe FilePath
@@ -91,11 +92,11 @@ data HDevTools
 
 dummyAdmin :: HDevTools
 dummyAdmin = Admin
-    { socket = Nothing
+    { socket       = Nothing
     , start_server = False
-    , noDaemon = False
-    , status = False
-    , stop_server = False
+    , noDaemon     = False
+    , status       = False
+    , stop_server  = False
     }
 
 dummyCheck :: HDevTools
@@ -105,6 +106,7 @@ dummyCheck = Check
     , cabalOpts = []
     , path    = Nothing
     , file    = ""
+    , json    = False
     }
 
 dummyModuleFile :: HDevTools
@@ -165,6 +167,7 @@ check = record dummyCheck
 #endif
     , path     := def += typFile      += help "path to target file"
     , file     := def += typFile      += argPos 0 += opt ""
+    , json     := def                 += help "render output as JSON"
     ] += help "Check a haskell source file for errors and warnings"
 
 moduleFile :: Annotate Ann

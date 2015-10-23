@@ -69,7 +69,7 @@ executable hdevtools
                        ghc-paths,
                        syb,
                        network,
-                       process >= 1.2.3.0,
+                       process,
                        time,
                        transformers,
                        unix
