@@ -42,7 +42,7 @@ import Distribution.Verbosity (silent)
 import Distribution.Version (Version(..))
 
 import System.IO.Error (ioeGetErrorString)
-import System.Directory (doesFileExist, getDirectoryContents)
+import System.Directory (doesFileExist, doesDirectoryExist, getDirectoryContents)
 import System.FilePath (takeDirectory, splitFileName, (</>))
 
 
@@ -187,10 +187,10 @@ getPackageGhcOpts path mbStack opts = do
     -- returns the right 'dist' directory in the case of a sandbox
     getDistDir = do
         let dir = takeDirectory path </> "dist"
-        contents <- getDirectoryContents dir
-        return $ case find ("dist-sandbox-" `isPrefixOf`) contents of
-                      Just sbdir -> dir </> sbdir
-                      Nothing    -> dir
+        exists <- doesDirectoryExist dir
+        if not exists then return dir else do
+            contents <- getDirectoryContents dir
+            return . maybe dir (dir </>) $ find ("dist-sandbox-" `isPrefixOf`) contents
 
 pkgLibName :: PackageDescription -> Maybe PackageName
 pkgLibName pkgDescr = if hasLibrary pkgDescr
