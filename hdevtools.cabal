@@ -1,5 +1,5 @@
 name:                hdevtools
-version:             0.1.2.1
+version:             0.1.2.2
 synopsis:            Persistent GHC powered background server for FAST haskell development tools
 description:
     'hdevtools' is a backend for text editor plugins, to allow for things such as
@@ -38,6 +38,7 @@ homepage:            https://github.com/hdevtools/hdevtools/
 bug-reports:         https://github.com/hdevtools/hdevtools/issues/
 build-type:          Simple
 cabal-version:       >=1.8
+extra-source-files:  CHANGELOG.md
 
 source-repository head
   type:                git
