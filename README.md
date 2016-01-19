@@ -39,9 +39,22 @@ Text Editor Integration
 editor plugins that supply this integration is below.
 
 But before you do anything, you must first install `hdevtools` itself. The
-easiest way is from [Hackage][1] via cabal install:
+easiest way is from [Stackage][14] using [stack][15]:
+```
+$ stack install hdevtools
+```
 
-    $ cabal install hdevtools
+**Note:** As stack manages matching GHC versions, the appropriate compiler has
+to be available to `hdevtools`. Thus hdevtools has to be started with `stack exec`,
+for example using the alias:
+```
+$ alias hdevtools="stack exec --no-ghc-package-path hdevtools --"
+```
+
+Alternatively one can install from [Hackage][1] via cabal install:
+```
+$ cabal install hdevtools
+```
 
 Then you should install one or more of the following editor plugins:
 
@@ -73,13 +86,18 @@ details.
 [Flycheck][5] is a modern batteries-included
 syntax checker for Emacs, and there is a [flycheck-hdevtools][6] checker available.
 
-
 ### Atom - [linter][8] ###
 
 There are *two* packages for the [Atom](https://atom.io) editor:
 
 + [linter-hdevtools][8] quickly finds and underlines type errors in Haskell files,
-+ [hover-tooltips-hdevtools][9] displays the types of identifiers under the mouse. 
++ [hover-tooltips-hdevtools][9] displays the types of identifiers under the mouse.
+
+### Sublime - [SublimeLinter][10]
+
+[SublimeLinter][10] is a plugin for Sublime Text 3 that provides a framework
+for linting code. The [SublimeLinter-contrib-hdevtools][11] plugin uses
+`hdevtools` to typecheck Haskell code.
 
 ### Manual Editor Integration for any Editor ###
 
@@ -146,7 +164,7 @@ background process, not your current directory. This can cause problems, and
 therefore it is recommended that you leave the socket file as the default, and
 always run `hdevtools` from the same directory.
 
-You can specify the path to a target file with the `--path` option. This is 
+You can specify the path to a target file with the `--path` option. This is
 useful for integration with IDEs that submit a *copy* of the original source
 file (in a temporary directory) to `hdevtools` making it impossible to extract
 the `.cabal` information for the file's project. In such cases, you can run as:
@@ -192,7 +210,8 @@ would pass to GHCi.
 Credits
 -------
 
-`hdevtools` was inspired by [ghcmod][4].
+* `hdevtools` was inspired by [ghcmod][4].
+* development moved here from [bitc/hdevtools][12] and [schell/hdevtools][13].
 
 [1]: http://hackage.haskell.org/package/hdevtools
 [2]: https://github.com/scrooloose/syntastic
@@ -203,3 +222,9 @@ Credits
 [7]: https://atom.io
 [8]: https://atom.io/packages/linter-hdevtools
 [9]: https://atom.io/packages/hover-tooltips-hdevtools
+[10]: sublimelinter.com
+[11]: https://packagecontrol.io/packages/SublimeLinter-contrib-hdevtools
+[12]: https://github.com/bitc/hdevtools
+[13]: https://github.com/schell/hdevtools
+[14]: https://www.stackage.org/package/hdevtools
+[15]: haskellstack.org
