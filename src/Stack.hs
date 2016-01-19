@@ -84,7 +84,7 @@ getStackDbs p = do mpp <- execInPath cmd p
                        Just pp -> Just <$> extractDbs pp
                        Nothing -> return Nothing
   where
-    cmd       = "stack --verbosity quiet exec printenv GHC_PACKAGE_PATH"
+    cmd       = "stack path --ghc-package-path"
 
 extractDbs :: String -> IO [FilePath]
 extractDbs = filterM doesDirectoryExist . stringPaths
