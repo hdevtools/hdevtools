@@ -218,7 +218,7 @@ getSandboxPackageDB sandboxPath = do
   where
     pkgDbKey = "package-db:"
     parse = head . filter (pkgDbKey `isPrefixOf`) . lines
-    extractValue = fst . break isSpace . dropWhile isSpace . drop (length pkgDbKey)
+    extractValue = fst . break (`elem` "\n\r") . dropWhile isSpace . drop (length pkgDbKey)
 
 
 findCabalFile :: FilePath -> IO (Maybe FilePath)
