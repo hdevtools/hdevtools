@@ -38,8 +38,9 @@ startServer socketPath mbSock = do
     go sock = do
         state <- newCommandLoopState
         currentClient <- newIORef Nothing
+        configRef <- newIORef Nothing
         config <- newConfig emptyCommandExtra
-        startCommandLoop state (clientSend currentClient) (getNextCommand currentClient sock) config Nothing
+        startCommandLoop state (clientSend currentClient) (getNextCommand currentClient sock configRef) config Nothing
 
     removeSocketFile :: IO ()
     removeSocketFile = do
@@ -60,8 +61,8 @@ clientSend currentClient clientDirective = do
     ignoreEPipe = handleJust (guard . isEPipe) (const $ return ())
     isEPipe = (==ResourceVanished) . ioeGetErrorType
 
-getNextCommand :: IORef (Maybe Handle) -> Socket -> IO (Maybe (Command, Config))
-getNextCommand currentClient sock = do
+getNextCommand :: IORef (Maybe Handle) -> Socket -> IORef (Maybe Config) -> IO (Maybe (Command, Config))
+getNextCommand currentClient sock config = do
     checkCurrent <- readIORef currentClient
     case checkCurrent of
         Just h -> hClose h
@@ -74,16 +75,21 @@ getNextCommand currentClient sock = do
         Nothing -> do
             clientSend currentClient $ ClientUnexpectedError $
                 "The client sent an invalid message to the server: " ++ show msg
-            getNextCommand currentClient sock
+            getNextCommand currentClient sock config
         Just (SrvCommand cmd cmdExtra) -> do
-            config <- newConfig cmdExtra
-            return $ Just (cmd, config)
+            haveConfig <- readIORef config
+            case haveConfig of
+                 Just oldconfig -> return $ Just (cmd, oldconfig)
+                 Nothing -> do
+                     reconfig <- newConfig cmdExtra
+                     writeIORef config (Just reconfig)
+                     return $ Just (cmd, reconfig)
         Just SrvStatus -> do
             mapM_ (clientSend currentClient) $
                 [ ClientStdout "Server is running."
                 , ClientExit ExitSuccess
                 ]
-            getNextCommand currentClient sock
+            getNextCommand currentClient sock config
         Just SrvExit -> do
             mapM_ (clientSend currentClient) $
                 [ ClientStdout "Shutting down server."
