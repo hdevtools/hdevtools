@@ -17,6 +17,7 @@ import Client (getServerStatus, serverCommand, stopServer)
 import CommandArgs
 import Daemonize (daemonize)
 import Server (startServer, createListenSocket)
+import Stack (findStackYaml)
 import Types (Command(..), CommandExtra(..), emptyCommandExtra)
 
 absoluteFilePath :: FilePath -> IO FilePath
@@ -56,11 +57,13 @@ main = do
     let argPath = pathArg args
     dir  <- maybe getCurrentDirectory (return . takeDirectory) argPath
     mCabalFile <- findCabalFile dir >>= traverse absoluteFilePath
+    mStackYaml <- findStackYaml dir
     let extra = emptyCommandExtra
-                    { ceGhcOptions  = ghcOpts args
-                    , ceCabalConfig = mCabalFile
-                    , cePath        = argPath
+                    { cePath = argPath
+                    , ceGhcOptions  = ghcOpts args
+                    , ceCabalFilePath = mCabalFile
                     , ceCabalOptions = cabalOpts args
+                    , ceStackYamlPath = mStackYaml
                     }
     let defaultSocketPath = maybe "" takeDirectory mCabalFile </> defaultSocketFile
     let sock = fromMaybe defaultSocketPath $ socket args

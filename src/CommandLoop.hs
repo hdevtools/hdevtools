@@ -3,7 +3,7 @@ module CommandLoop
     ( newCommandLoopState
     , Config(..)
     , CabalConfig(..)
-    , newConfig
+    , updateConfig
     , startCommandLoop
     ) where
 
@@ -49,7 +49,7 @@ data CabalConfig = CabalConfig
     , cabalConfigOpts :: [String]
     , cabalConfigLastUpdatedAt :: EpochTime
     }
-    deriving Eq
+    deriving (Eq, Show)
 
 mkCabalConfig :: FilePath -> [String] -> IO CabalConfig
 mkCabalConfig path opts = do
@@ -64,17 +64,23 @@ data Config = Config
     , configCabal   :: Maybe CabalConfig
     , configStack   :: Maybe StackConfig
     }
-    deriving Eq
+    deriving (Eq, Show)
 
-newConfig :: CommandExtra -> IO Config
-newConfig cmdExtra = do
-    mbCabalConfig <- traverse (\path -> mkCabalConfig path (ceCabalOptions cmdExtra)) $ ceCabalConfig cmdExtra
-    mbStackConfig <- getStackConfig cmdExtra
+updateConfig :: Maybe Config -> CommandExtra -> IO Config
+updateConfig mConfig cmdExtra = do
+    mbCabalConfig <- traverse (\path -> mkCabalConfig path (ceCabalOptions cmdExtra)) $
+      ceCabalFilePath cmdExtra
+
+    mbStackConfig <- if (stackYaml <$> msc) == (ceStackYamlPath cmdExtra)
+      then return msc
+      else getStackConfig cmdExtra
 
     return $ Config { configGhcOpts = "-O0" : ceGhcOptions cmdExtra
                     , configCabal = mbCabalConfig
                     , configStack = mbStackConfig
                     }
+ where
+  msc = mConfig >>= configStack
 
 type CommandObj = (Command, Config)
 

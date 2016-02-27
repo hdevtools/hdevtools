@@ -2,7 +2,7 @@
 module Stack
       ( -- * The bits of information needed from `stack`
         StackConfig (..)
-        -- * Run `stack exec` to compute @StackConfig@
+      , findStackYaml
       , getStackConfig
       ) where
 
@@ -21,44 +21,27 @@ import Control.Monad (filterM)
 import Control.Exception
 import Types
 
-
--- | This module adds support for `stack`, as follows:
---   1. Figure out if the target-file is in a stack project,
---   2. If `stack` in available in PATH, run `stack exec` to extract
---      `StackConfig`
---   3. The `StackConfig` is used to suitably alter the cabal ConfigFlags in
---      Cabal.hs
-
-
 -- TODO: Move into Types?
-data StackConfig = StackConfig { stackDist :: FilePath
+data StackConfig = StackConfig { stackYaml :: FilePath
+                               , stackDist :: FilePath
                                , stackDbs  :: [FilePath]
                                }
                    deriving (Eq, Show)
 
---------------------------------------------------------------------------------
-getStackConfig :: CommandExtra -> IO (Maybe StackConfig)
---------------------------------------------------------------------------------
-getStackConfig ce = case cePath ce of
-                      Nothing -> return Nothing
-                      Just p  -> getStackConfig' p
-
-getStackConfig' :: FilePath -> IO (Maybe StackConfig)
-getStackConfig' p = do
-  mbYaml <- getStackYaml p
-  case mbYaml of
-    Nothing -> return Nothing
-    Just _  -> do mdbs <- getStackDbs p
-                  mdst <- getStackDist p
-                  return $ StackConfig <$> mdst <*> mdbs
-
---------------------------------------------------------------------------------
-getStackYaml :: FilePath -> IO (Maybe FilePath)
---------------------------------------------------------------------------------
-getStackYaml p = listToMaybe <$> filterM doesFileExist paths
+-- | Search for a @stack.yaml@ upwards in given file path tree.
+findStackYaml :: FilePath -> IO (Maybe FilePath)
+findStackYaml p = listToMaybe <$> filterM doesFileExist paths
   where
     paths      = [ d </> "stack.yaml" | d <- pathsToRoot dir]
     dir        = takeDirectory p
+
+-- | Run @stack path@ to compute @StackConfig@
+getStackConfig :: CommandExtra -> IO (Maybe StackConfig)
+getStackConfig CommandExtra { ceStackYamlPath = Nothing } = return Nothing
+getStackConfig CommandExtra { ceStackYamlPath = Just p } = do
+    dbs <- getStackDbs p
+    dist <- getStackDist p
+    return $ StackConfig p <$> dist <*> dbs
 
 pathsToRoot :: FilePath -> [FilePath]
 pathsToRoot p
