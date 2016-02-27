@@ -10,7 +10,7 @@ import System.Exit (ExitCode(ExitSuccess))
 import System.IO (Handle, hClose, hFlush, hGetLine, hPutStrLn)
 import System.IO.Error (ioeGetErrorType, isAlreadyInUseError, isDoesNotExistError)
 
-import CommandLoop (newCommandLoopState, Config, newConfig, startCommandLoop)
+import CommandLoop (newCommandLoopState, Config, updateConfig, startCommandLoop)
 import Types (ClientDirective(..), Command, emptyCommandExtra, ServerDirective(..))
 import Util (readMaybe)
 
@@ -39,7 +39,7 @@ startServer socketPath mbSock = do
         state <- newCommandLoopState
         currentClient <- newIORef Nothing
         configRef <- newIORef Nothing
-        config <- newConfig emptyCommandExtra
+        config <- updateConfig Nothing emptyCommandExtra
         startCommandLoop state (clientSend currentClient) (getNextCommand currentClient sock configRef) config Nothing
 
     removeSocketFile :: IO ()
@@ -77,13 +77,10 @@ getNextCommand currentClient sock config = do
                 "The client sent an invalid message to the server: " ++ show msg
             getNextCommand currentClient sock config
         Just (SrvCommand cmd cmdExtra) -> do
-            haveConfig <- readIORef config
-            case haveConfig of
-                 Just oldconfig -> return $ Just (cmd, oldconfig)
-                 Nothing -> do
-                     reconfig <- newConfig cmdExtra
-                     writeIORef config (Just reconfig)
-                     return $ Just (cmd, reconfig)
+            curConfig <- readIORef config
+            config' <- updateConfig curConfig cmdExtra
+            writeIORef config (Just config')
+            return $ Just (cmd, config')
         Just SrvStatus -> do
             mapM_ (clientSend currentClient) $
                 [ ClientStdout "Server is running."
