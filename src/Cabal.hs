@@ -158,6 +158,8 @@ getPackageGhcOpts path mbStack opts = do
         case getGhcVersion localBuildInfo of
             Nothing -> return $ Left "GHC is not configured"
 
+-- TODO: Is this conditional compiling on ghc version really necessary?
+--       It may be we just need to check Cabal version.
 #if __GLASGOW_HASKELL__ >= 709
             Just _  -> do
                 let mbLibName = pkgLibName pkgDescr
@@ -168,19 +170,57 @@ getPackageGhcOpts path mbStack opts = do
                                        , ghcOptPackages = overNubListR (filter (\(_, pkgId, _) -> Just (pkgName pkgId) /= mbLibName)) $ (ghcOptPackages ghcOpts')
                                        , ghcOptSourcePath = overNubListR (map (baseDir </>)) (ghcOptSourcePath ghcOpts')
                                        }
-                (ghcInfo,_,_) <- GHC.configure silent Nothing Nothing defaultProgramConfiguration
+                (ghcInfo,mbPlatform,_) <- GHC.configure silent Nothing Nothing defaultProgramConfiguration
 
-                return $ Right $ renderGhcOptions ghcInfo ghcOpts
+#if MIN_VERSION_Cabal(1,25,0)
+-- API Change:
+-- Distribution.Simple.Program.GHC.renderGhcOptions now takes Platform argument
+-- renderGhcOptions :: Compiler -> Platform -> GhcOptions -> [String]
+                return $ case mbPlatform of
+                    Just platform -> Right $ renderGhcOptions ghcInfo platform ghcOpts
+                    Nothing       -> Left "GHC.configure did not return platform"
 #else
+-- renderGhcOptions :: Compiler -> GhcOptions -> [String]
+                return $ Right $ renderGhcOptions ghcInfo ghcOpts
+#endif
             Just ghcVersion -> do
                 let mbLibName = pkgLibName pkgDescr
                 let ghcOpts' = foldl' mappend mempty $ map (getComponentGhcOptions localBuildInfo) $ flip allComponentsBy (\c -> c) . localPkgDescr $ localBuildInfo
 
-                    ghcOpts = ghcOpts' { ghcOptExtra = filter (/= "-Werror") $ nub $ ghcOptExtra ghcOpts'
+#if MIN_VERSION_Cabal(1,22,0)
+                (ghcInfo,mbPlatform,_) <- GHC.configure silent Nothing Nothing defaultProgramConfiguration
+-- API Change:
+-- Distribution.Simple.Program.GHC.GhcOptions now uses NubListR's
+--  GhcOptions { .. ghcOptPackages :: NubListR (InstalledPackageId, PackageId, ModuleRemaining) .. }
+                let ghcOpts = ghcOpts' { ghcOptExtra = overNubListR (filter (/= "-Werror")) $ ghcOptExtra ghcOpts'
+                                       , ghcOptPackages = overNubListR (filter (\(_, pkgId,_) -> Just (pkgName pkgId) /= mbLibName)) (ghcOptPackages ghcOpts')
+                                       , ghcOptSourcePath = overNubListR (map (baseDir </>)) (ghcOptSourcePath ghcOpts')
+                                       }
+#else
+--  GhcOptions { .. ghcOptPackages :: [(InstalledPackageId, PackageId)]  .. }
+                let ghcOpts = ghcOpts' { ghcOptExtra = filter (/= "-Werror") $ nub $ ghcOptExtra ghcOpts'
                                        , ghcOptPackages = filter (\(_, pkgId) -> Just (pkgName pkgId) /= mbLibName) $ nub (ghcOptPackages ghcOpts')
                                        , ghcOptSourcePath = map (baseDir </>) (ghcOptSourcePath ghcOpts')
                                        }
+#endif
+#if MIN_VERSION_Cabal(1,25,0)
+-- API Change:
+-- Distribution.Simple.Program.GHC.renderGhcOptions now takes Platform argument
+-- renderGhcOptions :: Compiler -> Platform -> GhcOptions -> [String]
+                return $ case mbPlatform of
+                    Just platform -> Right $ renderGhcOptions ghcInfo platform ghcOpts
+                    Nothing       -> Left "GHC.configure did not return platform"
+#else
+#if MIN_VERSION_Cabal(1,20,0)
+ -- CABAL 1.20.0.0
+-- renderGhcOptions :: Compiler -> GhcOptions -> [String]
+                return $ Right $ renderGhcOptions ghcInfo ghcOpts
+#else
+ -- CABAL 1.18.0
+-- renderGhcOptions :: Version -> GhcOptions -> [String]
                 return $ Right $ renderGhcOptions ghcVersion ghcOpts
+#endif
+#endif
 #endif
 
     -- returns the right 'dist' directory in the case of a sandbox
