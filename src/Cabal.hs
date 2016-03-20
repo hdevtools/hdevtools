@@ -172,7 +172,7 @@ getPackageGhcOpts path mbStack opts = do
                                        }
                 (ghcInfo,mbPlatform,_) <- GHC.configure silent Nothing Nothing defaultProgramConfiguration
 
-#if MIN_VERSION_Cabal(1,25,0)
+#if MIN_VERSION_Cabal(1,23,2)
 -- API Change:
 -- Distribution.Simple.Program.GHC.renderGhcOptions now takes Platform argument
 -- renderGhcOptions :: Compiler -> Platform -> GhcOptions -> [String]
@@ -203,7 +203,7 @@ getPackageGhcOpts path mbStack opts = do
                                        , ghcOptSourcePath = map (baseDir </>) (ghcOptSourcePath ghcOpts')
                                        }
 #endif
-#if MIN_VERSION_Cabal(1,25,0)
+#if MIN_VERSION_Cabal(1,23,2)
 -- API Change:
 -- Distribution.Simple.Program.GHC.renderGhcOptions now takes Platform argument
 -- renderGhcOptions :: Compiler -> Platform -> GhcOptions -> [String]
