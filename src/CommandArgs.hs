@@ -6,31 +6,20 @@ module CommandArgs
     )
 where
 
+import Data.Version (showVersion)
+import Paths_hdevtools (version)
 import System.Console.CmdArgs.Implicit
 import System.Environment (getProgName)
 import System.Info (arch, os)
 import qualified Config
 
-#ifdef CABAL
-import Data.Version (showVersion)
-import Paths_hdevtools (version)
-#endif
-
 programVersion :: String
 programVersion =
-#ifdef CABAL
     "version " ++ showVersion version
-#else
-    "unknown-version (not built with cabal)"
-#endif
 
 cabalVersion :: String
 cabalVersion =
-#ifdef ENABLE_CABAL
     "cabal-" ++ VERSION_Cabal
-#else
-    "no cabal support"
-#endif
 
 fullVersion :: String
 fullVersion =
@@ -160,11 +149,7 @@ check :: Annotate Ann
 check = record dummyCheck
     [ socket   := def += typFile      += help "socket file to use"
     , ghcOpts  := def += typ "OPTION" += help "ghc options"
-#ifdef ENABLE_CABAL
     , cabalOpts := def += typ "OPTION"  += help "cabal options"
-#else
-    , cabalOpts := def += ignore
-#endif
     , path     := def += typFile      += help "path to target file"
     , file     := def += typFile      += argPos 0 += opt ""
     , json     := def                 += help "render output as JSON"
@@ -174,11 +159,7 @@ moduleFile :: Annotate Ann
 moduleFile = record dummyModuleFile
     [ socket   := def += typFile += help "socket file to use"
     , ghcOpts  := def += typ "OPTION" += help "ghc options"
-#ifdef ENABLE_CABAL
     , cabalOpts := def += typ "OPTION"  += help "cabal options"
-#else
-    , cabalOpts := def += ignore
-#endif
     , module_  := def += typ "MODULE" += argPos 0
     ] += help "Get the haskell source file corresponding to a module name"
 
@@ -186,11 +167,7 @@ info :: Annotate Ann
 info = record dummyInfo
     [ socket     := def += typFile      += help "socket file to use"
     , ghcOpts    := def += typ "OPTION" += help "ghc options"
-#ifdef ENABLE_CABAL
     , cabalOpts := def += typ "OPTION"  += help "cabal options"
-#else
-    , cabalOpts := def += ignore
-#endif
     , path       := def += typFile      += help "path to target file"
     , file       := def += typFile      += argPos 0 += opt ""
     , identifier := def += typ "IDENTIFIER" += argPos 1
@@ -200,11 +177,7 @@ type_ :: Annotate Ann
 type_ = record dummyType
     [ socket   := def += typFile += help "socket file to use"
     , ghcOpts  := def += typ "OPTION" += help "ghc options"
-#ifdef ENABLE_CABAL
     , cabalOpts := def += typ "OPTION"  += help "cabal options"
-#else
-    , cabalOpts := def += ignore
-#endif
     , path     := def += typFile      += help "path to target file"
     , file     := def += typFile      += argPos 0 += opt ""
     , line     := def += typ "LINE"   += argPos 1
@@ -215,11 +188,7 @@ findSymbol :: Annotate Ann
 findSymbol = record dummyFindSymbol
     [ socket   := def += typFile += help "socket file to use"
     , ghcOpts  := def += typ "OPTION" += help "ghc options"
-#ifdef ENABLE_CABAL
     , cabalOpts := def += typ "OPTION"  += help "cabal options"
-#else
-    , cabalOpts := def += ignore
-#endif
     , symbol   := def += typ "SYMBOL" += argPos 0
     , files    := def += typFile += args
     ] += help "List the modules where the given symbol could be found"

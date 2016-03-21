@@ -4,7 +4,7 @@ synopsis:            Persistent GHC powered background server for FAST haskell d
 license:             MIT
 license-file:        LICENSE
 author:              Bit Connor
-maintainer:          Sebastian Nagel <sebastian.nagel@ncoding.at>, 
+maintainer:          Sebastian Nagel <sebastian.nagel@ncoding.at>,
                      Ranjit Jhala <jhala@cs.ucsd.edu>
 copyright:           See AUTHORS file
 category:            Development
@@ -49,7 +49,6 @@ source-repository head
 executable hdevtools
   hs-source-dirs:      src
   ghc-options:         -Wall
-  cpp-options:         -DCABAL
   main-is:             Main.hs
   other-modules:       Cabal,
                        Client,
@@ -80,14 +79,10 @@ executable hdevtools
 
   if impl(ghc == 7.6.*)
     build-depends:     Cabal == 1.16.*
-    cpp-options:       -DENABLE_CABAL
 
   if impl(ghc >= 7.7)
     build-depends:     Cabal >= 1.18
-    cpp-options:       -DENABLE_CABAL
 
   if impl(ghc >= 7.9)
     build-depends:     Cabal >= 1.22,
                        bin-package-db
-
-    cpp-options:       -DENABLE_CABAL

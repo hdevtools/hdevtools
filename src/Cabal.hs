@@ -4,7 +4,6 @@ module Cabal
   , findCabalFile
   ) where
 
-#ifdef ENABLE_CABAL
 import Stack
 import Control.Exception (IOException, catch)
 import Control.Monad (when)
@@ -159,7 +158,8 @@ getPackageGhcOpts path mbStack opts = do
             Nothing -> return $ Left "GHC is not configured"
             Just ghcVersion  -> do
                 let mbLibName = pkgLibName pkgDescr
-                let ghcOpts' = foldl' mappend mempty $ map (getComponentGhcOptions localBuildInfo) $ flip allComponentsBy (\c -> c) . localPkgDescr $ localBuildInfo
+                let ghcOpts' = foldl' mappend mempty . map (getComponentGhcOptions localBuildInfo) .
+                               flip allComponentsBy (\c -> c) . localPkgDescr $ localBuildInfo
                     -- FIX bug in GhcOptions' `mappend`
 #if MIN_VERSION_Cabal(1,22,0)
 -- API Change:
@@ -179,7 +179,8 @@ getPackageGhcOpts path mbStack opts = do
                                        , ghcOptSourcePath = map (baseDir </>) (ghcOptSourcePath ghcOpts')
                                        }
 #endif
-                (ghcInfo,mbPlatform,_) <- GHC.configure silent Nothing Nothing defaultProgramConfiguration
+                (ghcInfo, mbPlatform, _) <- GHC.configure silent Nothing Nothing defaultProgramConfiguration
+                putStrLn $ "Configured GHC " ++ show ghcVersion ++ " " ++ show mbPlatform
 #if MIN_VERSION_Cabal(1,23,2)
 -- API Change:
 -- Distribution.Simple.Program.GHC.renderGhcOptions now takes Platform argument
@@ -189,11 +190,9 @@ getPackageGhcOpts path mbStack opts = do
                     Nothing       -> Left "GHC.configure did not return platform"
 #else
 #if MIN_VERSION_Cabal(1,20,0)
- -- CABAL 1.20.0.0
 -- renderGhcOptions :: Compiler -> GhcOptions -> [String]
                 return $ Right $ renderGhcOptions ghcInfo ghcOpts
 #else
- -- CABAL 1.18.0
 -- renderGhcOptions :: Version -> GhcOptions -> [String]
                 return $ Right $ renderGhcOptions ghcVersion ghcOpts
 #endif
@@ -252,16 +251,5 @@ findCabalFile dir = do
   where
 
     isCabalFile :: FilePath -> Bool
-    isCabalFile path = cabalExtension `isSuffixOf` path
-                    && length path > length cabalExtension
-        where cabalExtension = ".cabal"
-
-# else
-
-getPackageGhcOpts :: FilePath -> [String] -> IO (Either String [String])
-getPackageGhcOpts _ _ = return $ Right []
-
-findCabalFile :: FilePath -> IO (Maybe FilePath)
-findCabalFile _ = return Nothing
-
-#endif
+    isCabalFile path = ".cabal" `isSuffixOf` path
+                    && length path > length ".cabal"
