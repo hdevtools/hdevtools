@@ -155,45 +155,21 @@ getPackageGhcOpts path mbStack opts = do
         localBuildInfo <- configure (genPkgDescr, emptyHookedBuildInfo) cfgFlags
         let pkgDescr = localPkgDescr localBuildInfo
         let baseDir = fst . splitFileName $ path
-        case getGhcVersion localBuildInfo of
+        case getGhcVersion localBuildInfo  of
             Nothing -> return $ Left "GHC is not configured"
-
--- TODO: Is this conditional compiling on ghc version really necessary?
---       It may be we just need to check Cabal version.
-#if __GLASGOW_HASKELL__ >= 709
-            Just _  -> do
+            Just ghcVersion  -> do
                 let mbLibName = pkgLibName pkgDescr
                 let ghcOpts' = foldl' mappend mempty $ map (getComponentGhcOptions localBuildInfo) $ flip allComponentsBy (\c -> c) . localPkgDescr $ localBuildInfo
                     -- FIX bug in GhcOptions' `mappend`
-                    ghcOpts = ghcOpts' { ghcOptExtra = overNubListR (filter (/= "-Werror")) $ ghcOptExtra ghcOpts'
-                                       , ghcOptPackageDBs = sort $ nub (ghcOptPackageDBs ghcOpts')
-                                       , ghcOptPackages = overNubListR (filter (\(_, pkgId, _) -> Just (pkgName pkgId) /= mbLibName)) $ (ghcOptPackages ghcOpts')
-                                       , ghcOptSourcePath = overNubListR (map (baseDir </>)) (ghcOptSourcePath ghcOpts')
-                                       }
-                (ghcInfo,mbPlatform,_) <- GHC.configure silent Nothing Nothing defaultProgramConfiguration
-
-#if MIN_VERSION_Cabal(1,23,2)
--- API Change:
--- Distribution.Simple.Program.GHC.renderGhcOptions now takes Platform argument
--- renderGhcOptions :: Compiler -> Platform -> GhcOptions -> [String]
-                return $ case mbPlatform of
-                    Just platform -> Right $ renderGhcOptions ghcInfo platform ghcOpts
-                    Nothing       -> Left "GHC.configure did not return platform"
-#else
--- renderGhcOptions :: Compiler -> GhcOptions -> [String]
-                return $ Right $ renderGhcOptions ghcInfo ghcOpts
-#endif
-            Just ghcVersion -> do
-                let mbLibName = pkgLibName pkgDescr
-                let ghcOpts' = foldl' mappend mempty $ map (getComponentGhcOptions localBuildInfo) $ flip allComponentsBy (\c -> c) . localPkgDescr $ localBuildInfo
-
 #if MIN_VERSION_Cabal(1,22,0)
-                (ghcInfo,mbPlatform,_) <- GHC.configure silent Nothing Nothing defaultProgramConfiguration
 -- API Change:
 -- Distribution.Simple.Program.GHC.GhcOptions now uses NubListR's
 --  GhcOptions { .. ghcOptPackages :: NubListR (InstalledPackageId, PackageId, ModuleRemaining) .. }
-                let ghcOpts = ghcOpts' { ghcOptExtra = overNubListR (filter (/= "-Werror")) $ ghcOptExtra ghcOpts'
-                                       , ghcOptPackages = overNubListR (filter (\(_, pkgId,_) -> Just (pkgName pkgId) /= mbLibName)) (ghcOptPackages ghcOpts')
+                    ghcOpts = ghcOpts' { ghcOptExtra = overNubListR (filter (/= "-Werror")) $ ghcOptExtra ghcOpts'
+#if __GLASGOW_HASKELL__ >= 709
+                                       , ghcOptPackageDBs = sort $ nub (ghcOptPackageDBs ghcOpts')
+#endif
+                                       , ghcOptPackages = overNubListR (filter (\(_, pkgId, _) -> Just (pkgName pkgId) /= mbLibName)) $ (ghcOptPackages ghcOpts')
                                        , ghcOptSourcePath = overNubListR (map (baseDir </>)) (ghcOptSourcePath ghcOpts')
                                        }
 #else
@@ -203,6 +179,7 @@ getPackageGhcOpts path mbStack opts = do
                                        , ghcOptSourcePath = map (baseDir </>) (ghcOptSourcePath ghcOpts')
                                        }
 #endif
+                (ghcInfo,mbPlatform,_) <- GHC.configure silent Nothing Nothing defaultProgramConfiguration
 #if MIN_VERSION_Cabal(1,23,2)
 -- API Change:
 -- Distribution.Simple.Program.GHC.renderGhcOptions now takes Platform argument
@@ -219,7 +196,6 @@ getPackageGhcOpts path mbStack opts = do
  -- CABAL 1.18.0
 -- renderGhcOptions :: Version -> GhcOptions -> [String]
                 return $ Right $ renderGhcOptions ghcVersion ghcOpts
-#endif
 #endif
 #endif
 
