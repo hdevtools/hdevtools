@@ -4,7 +4,6 @@ module Cabal
   , findCabalFile
   ) where
 
-#ifdef ENABLE_CABAL
 import Stack
 import Control.Exception (IOException, catch)
 import Control.Monad (when)
@@ -22,7 +21,7 @@ import Distribution.PackageDescription.Parse (readPackageDescription)
 import Distribution.Simple.Configure (configure)
 import Distribution.Simple.LocalBuildInfo (LocalBuildInfo(..), ComponentLocalBuildInfo(..),
     Component(..), ComponentName(..),
-#if __GLASGOW_HASKELL__ < 707
+#if !MIN_VERSION_Cabal(1,18,0)
     allComponentsBy,
 #endif
     componentBuildInfo, foldComponent)
@@ -34,10 +33,10 @@ import Distribution.Simple.Program.Db (lookupProgram)
 import Distribution.Simple.Program.Types (ConfiguredProgram(programVersion), simpleProgram)
 import Distribution.Simple.Program.GHC (GhcOptions(..), renderGhcOptions)
 import Distribution.Simple.Setup (ConfigFlags(..), defaultConfigFlags, configureCommand, toFlag)
-#if __GLASGOW_HASKELL__ >= 709
+#if MIN_VERSION_Cabal(1,21,1)
 import Distribution.Utils.NubList
-import qualified Distribution.Simple.GHC as GHC(configure)
 #endif
+import qualified Distribution.Simple.GHC as GHC(configure)
 import Distribution.Verbosity (silent)
 import Distribution.Version (Version(..))
 
@@ -54,7 +53,7 @@ componentName =
                   (CBenchName . benchmarkName)
 
 getComponentLocalBuildInfo :: LocalBuildInfo -> ComponentName -> ComponentLocalBuildInfo
-#if __GLASGOW_HASKELL__ >= 707
+#if MIN_VERSION_Cabal(1,18,0)
 getComponentLocalBuildInfo lbi cname = getLocalBuildInfo cname $ componentsConfigs lbi
     where getLocalBuildInfo cname' ((cname'', clbi, _):cfgs) =
             if cname' == cname'' then clbi else getLocalBuildInfo cname' cfgs
@@ -78,7 +77,7 @@ getComponentLocalBuildInfo lbi (CBenchName name) =
         Just clbi -> clbi
 #endif
 
-#if __GLASGOW_HASKELL__ >= 707
+#if MIN_VERSION_Cabal(1,18,0)
 -- TODO: Fix callsites so we don't need `allComponentsBy`. It was taken from
 -- http://hackage.haskell.org/package/Cabal-1.16.0.3/docs/src/Distribution-Simple-LocalBuildInfo.html#allComponentsBy
 -- since it doesn't exist in Cabal 1.18.*
@@ -155,32 +154,64 @@ getPackageGhcOpts path mbStack opts = do
         localBuildInfo <- configure (genPkgDescr, emptyHookedBuildInfo) cfgFlags
         let pkgDescr = localPkgDescr localBuildInfo
         let baseDir = fst . splitFileName $ path
-        case getGhcVersion localBuildInfo of
+        case getGhcVersion localBuildInfo  of
             Nothing -> return $ Left "GHC is not configured"
-
-#if __GLASGOW_HASKELL__ >= 709
-            Just _  -> do
+            Just ghcVersion  -> do
                 let mbLibName = pkgLibName pkgDescr
-                let ghcOpts' = foldl' mappend mempty $ map (getComponentGhcOptions localBuildInfo) $ flip allComponentsBy (\c -> c) . localPkgDescr $ localBuildInfo
+                let ghcOpts' = foldl' mappend mempty . map (getComponentGhcOptions localBuildInfo) .
+                               flip allComponentsBy (\c -> c) . localPkgDescr $ localBuildInfo
                     -- FIX bug in GhcOptions' `mappend`
+#if MIN_VERSION_Cabal(1,21,1)
+-- API Change:
+-- Distribution.Simple.Program.GHC.GhcOptions now uses NubListR's
+--  GhcOptions { .. ghcOptPackages :: NubListR (InstalledPackageId, PackageId, ModuleRemaining) .. }
                     ghcOpts = ghcOpts' { ghcOptExtra = overNubListR (filter (/= "-Werror")) $ ghcOptExtra ghcOpts'
+#if __GLASGOW_HASKELL__ >= 709
                                        , ghcOptPackageDBs = sort $ nub (ghcOptPackageDBs ghcOpts')
+#endif
                                        , ghcOptPackages = overNubListR (filter (\(_, pkgId, _) -> Just (pkgName pkgId) /= mbLibName)) $ (ghcOptPackages ghcOpts')
                                        , ghcOptSourcePath = overNubListR (map (baseDir </>)) (ghcOptSourcePath ghcOpts')
                                        }
-                (ghcInfo,_,_) <- GHC.configure silent Nothing Nothing defaultProgramConfiguration
-
-                return $ Right $ renderGhcOptions ghcInfo ghcOpts
 #else
-            Just ghcVersion -> do
-                let mbLibName = pkgLibName pkgDescr
-                let ghcOpts' = foldl' mappend mempty $ map (getComponentGhcOptions localBuildInfo) $ flip allComponentsBy (\c -> c) . localPkgDescr $ localBuildInfo
-
-                    ghcOpts = ghcOpts' { ghcOptExtra = filter (/= "-Werror") $ nub $ ghcOptExtra ghcOpts'
+--  GhcOptions { .. ghcOptPackages :: [(InstalledPackageId, PackageId)]  .. }
+                let ghcOpts = ghcOpts' { ghcOptExtra = filter (/= "-Werror") $ nub $ ghcOptExtra ghcOpts'
                                        , ghcOptPackages = filter (\(_, pkgId) -> Just (pkgName pkgId) /= mbLibName) $ nub (ghcOptPackages ghcOpts')
                                        , ghcOptSourcePath = map (baseDir </>) (ghcOptSourcePath ghcOpts')
                                        }
+#endif
+
+#if MIN_VERSION_Cabal(1,18,0)
+-- API Change:
+-- Distribution.Simple.GHC.configure now returns (Compiler, Maybe Platform, ProgramConfiguration) 
+-- It used to just return (Compiler, ProgramConfiguration)
+-- GHC.configure :: Verbosity -> Maybe FilePath -> Maybe FilePath -> ProgramConfiguration
+--               -> IO (Compiler, Maybe Platform, ProgramConfiguration)
+                (ghcInfo, mbPlatform, _) <- GHC.configure silent Nothing Nothing defaultProgramConfiguration
+#else
+-- configure :: Verbosity -> Maybe FilePath -> Maybe FilePath -> ProgramConfiguration
+--           -> IO (Compiler, ProgramConfiguration)
+                (ghcInfo, _) <- GHC.configure silent Nothing Nothing defaultProgramConfiguration
+                -- let mbPlatform = Just (hostPlatform localBuildInfo) :: Maybe Platform
+#endif
+                putStrLn $ "Configured GHC " ++ show ghcVersion
+#if MIN_VERSION_Cabal(1,18,0)
+                                             ++ " " ++ show mbPlatform
+#endif
+#if MIN_VERSION_Cabal(1,23,2)
+-- API Change:
+-- Distribution.Simple.Program.GHC.renderGhcOptions now takes Platform argument
+-- renderGhcOptions :: Compiler -> Platform -> GhcOptions -> [String]
+                return $ case mbPlatform of
+                    Just platform -> Right $ renderGhcOptions ghcInfo platform ghcOpts
+                    Nothing       -> Left "GHC.configure did not return platform"
+#else
+#if MIN_VERSION_Cabal(1,20,0)
+-- renderGhcOptions :: Compiler -> GhcOptions -> [String]
+                return $ Right $ renderGhcOptions ghcInfo ghcOpts
+#else
+-- renderGhcOptions :: Version -> GhcOptions -> [String]
                 return $ Right $ renderGhcOptions ghcVersion ghcOpts
+#endif
 #endif
 
     -- returns the right 'dist' directory in the case of a sandbox
@@ -236,16 +267,5 @@ findCabalFile dir = do
   where
 
     isCabalFile :: FilePath -> Bool
-    isCabalFile path = cabalExtension `isSuffixOf` path
-                    && length path > length cabalExtension
-        where cabalExtension = ".cabal"
-
-# else
-
-getPackageGhcOpts :: FilePath -> [String] -> IO (Either String [String])
-getPackageGhcOpts _ _ = return $ Right []
-
-findCabalFile :: FilePath -> IO (Maybe FilePath)
-findCabalFile _ = return Nothing
-
-#endif
+    isCabalFile path = ".cabal" `isSuffixOf` path
+                    && length path > length ".cabal"

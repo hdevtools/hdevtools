@@ -2,9 +2,4 @@ flags: {}
 packages:
 - '.'
 extra-deps: []
-
-# for GHC 7.8
-# resolver: lts-2.15
-
-# for GHC 7.10
-resolver: lts-5.5
+resolver: lts-5.8
