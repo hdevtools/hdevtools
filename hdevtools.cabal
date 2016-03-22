@@ -78,7 +78,7 @@ executable hdevtools
                        unix
 
   if impl(ghc == 7.6.*)
-    build-depends:     Cabal == 1.16.*
+    build-depends:     Cabal >= 1.16
 
   if impl(ghc >= 7.7)
     build-depends:     Cabal >= 1.18

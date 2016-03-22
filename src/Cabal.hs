@@ -21,7 +21,7 @@ import Distribution.PackageDescription.Parse (readPackageDescription)
 import Distribution.Simple.Configure (configure)
 import Distribution.Simple.LocalBuildInfo (LocalBuildInfo(..), ComponentLocalBuildInfo(..),
     Component(..), ComponentName(..),
-#if __GLASGOW_HASKELL__ < 707
+#if !MIN_VERSION_Cabal(1,18,0)
     allComponentsBy,
 #endif
     componentBuildInfo, foldComponent)
@@ -53,7 +53,7 @@ componentName =
                   (CBenchName . benchmarkName)
 
 getComponentLocalBuildInfo :: LocalBuildInfo -> ComponentName -> ComponentLocalBuildInfo
-#if __GLASGOW_HASKELL__ >= 707
+#if MIN_VERSION_Cabal(1,18,0)
 getComponentLocalBuildInfo lbi cname = getLocalBuildInfo cname $ componentsConfigs lbi
     where getLocalBuildInfo cname' ((cname'', clbi, _):cfgs) =
             if cname' == cname'' then clbi else getLocalBuildInfo cname' cfgs
@@ -77,7 +77,7 @@ getComponentLocalBuildInfo lbi (CBenchName name) =
         Just clbi -> clbi
 #endif
 
-#if __GLASGOW_HASKELL__ >= 707
+#if MIN_VERSION_Cabal(1,18,0)
 -- TODO: Fix callsites so we don't need `allComponentsBy`. It was taken from
 -- http://hackage.haskell.org/package/Cabal-1.16.0.3/docs/src/Distribution-Simple-LocalBuildInfo.html#allComponentsBy
 -- since it doesn't exist in Cabal 1.18.*
