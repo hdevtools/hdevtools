@@ -33,10 +33,10 @@ import Distribution.Simple.Program.Db (lookupProgram)
 import Distribution.Simple.Program.Types (ConfiguredProgram(programVersion), simpleProgram)
 import Distribution.Simple.Program.GHC (GhcOptions(..), renderGhcOptions)
 import Distribution.Simple.Setup (ConfigFlags(..), defaultConfigFlags, configureCommand, toFlag)
-#if __GLASGOW_HASKELL__ >= 709
+#if MIN_VERSION_Cabal(1,21,1)
 import Distribution.Utils.NubList
-import qualified Distribution.Simple.GHC as GHC(configure)
 #endif
+import qualified Distribution.Simple.GHC as GHC(configure)
 import Distribution.Verbosity (silent)
 import Distribution.Version (Version(..))
 
@@ -161,7 +161,7 @@ getPackageGhcOpts path mbStack opts = do
                 let ghcOpts' = foldl' mappend mempty . map (getComponentGhcOptions localBuildInfo) .
                                flip allComponentsBy (\c -> c) . localPkgDescr $ localBuildInfo
                     -- FIX bug in GhcOptions' `mappend`
-#if MIN_VERSION_Cabal(1,22,0)
+#if MIN_VERSION_Cabal(1,21,1)
 -- API Change:
 -- Distribution.Simple.Program.GHC.GhcOptions now uses NubListR's
 --  GhcOptions { .. ghcOptPackages :: NubListR (InstalledPackageId, PackageId, ModuleRemaining) .. }
@@ -179,8 +179,24 @@ getPackageGhcOpts path mbStack opts = do
                                        , ghcOptSourcePath = map (baseDir </>) (ghcOptSourcePath ghcOpts')
                                        }
 #endif
+
+#if MIN_VERSION_Cabal(1,18,0)
+-- API Change:
+-- Distribution.Simple.GHC.configure now returns (Compiler, Maybe Platform, ProgramConfiguration) 
+-- It used to just return (Compiler, ProgramConfiguration)
+-- GHC.configure :: Verbosity -> Maybe FilePath -> Maybe FilePath -> ProgramConfiguration
+--               -> IO (Compiler, Maybe Platform, ProgramConfiguration)
                 (ghcInfo, mbPlatform, _) <- GHC.configure silent Nothing Nothing defaultProgramConfiguration
-                putStrLn $ "Configured GHC " ++ show ghcVersion ++ " " ++ show mbPlatform
+#else
+-- configure :: Verbosity -> Maybe FilePath -> Maybe FilePath -> ProgramConfiguration
+--           -> IO (Compiler, ProgramConfiguration)
+                (ghcInfo, _) <- GHC.configure silent Nothing Nothing defaultProgramConfiguration
+                -- let mbPlatform = Just (hostPlatform localBuildInfo) :: Maybe Platform
+#endif
+                putStrLn $ "Configured GHC " ++ show ghcVersion
+#if MIN_VERSION_Cabal(1,18,0)
+                                             ++ " " ++ show mbPlatform
+#endif
 #if MIN_VERSION_Cabal(1,23,2)
 -- API Change:
 -- Distribution.Simple.Program.GHC.renderGhcOptions now takes Platform argument
