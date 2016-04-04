@@ -162,7 +162,7 @@ configSession state clientSend config = do
         let updatedDynFlags = initialDynFlags
                 { GHC.log_action    = logAction state clientSend
                 , GHC.ghcLink       = GHC.NoLink
-                , GHC.hscTarget     = GHC.HscInterpreted
+                , GHC.hscTarget     = GHC.HscNothing
                 }
         (finalDynFlags, _, _) <- GHC.parseDynamicFlags updatedDynFlags (map GHC.noLoc ghcOpts)
         _ <- GHC.setSessionDynFlags finalDynFlags
