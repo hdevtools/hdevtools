@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.3.1 - 2016-05-13
+
+ * Added support for new Cabal versions
+ * Do not generate code, fixing inline-c modules typechecking
+
 ## 0.1.3.0 - 2016-02-29
 
  * Improved performance in stack projects: The stack configuration is
