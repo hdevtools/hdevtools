@@ -30,7 +30,12 @@ findSymbol symbol files = do
    -- or errors to stdout for the loaded source files, we're only
    -- interested in the module graph of the loaded targets
    dynFlags <- GHC.getSessionDynFlags
-   _        <- GHC.setSessionDynFlags dynFlags { GHC.log_action = \_ _ _ _ _ -> return () }
+   _        <- GHC.setSessionDynFlags dynFlags { GHC.log_action = \_ _ _ _ _ ->
+#if __GLASGOW_HASKELL__ >= 800
+                                                 return . return $ () }
+#else
+                                                 return () }
+#endif
 
    fileMods <- concat <$> mapM (findSymbolInFile symbol) files
 
@@ -74,6 +79,12 @@ findSymbolInPackages symbol =
 		   . PKG.pkgIdMap
 		   . GHC.pkgState
 		   <$> GHC.getSessionDynFlags
+#elif __GLASGOW_HASKELL__ >= 800
+      exposedModuleNames = do
+        dynFlags <- GHC.getSessionDynFlags
+        pkgConfigs <- liftIO $ fmap concat
+          . (fmap . fmap) snd . PKG.readPackageConfigs $ dynFlags
+        return $ map exposedName (concatMap exposedModules pkgConfigs)
 #else
       exposedModuleNames = do
         dynFlags <- GHC.getSessionDynFlags

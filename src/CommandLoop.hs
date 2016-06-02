@@ -20,6 +20,9 @@ import System.Exit (ExitCode(ExitFailure, ExitSuccess))
 import System.FilePath (takeDirectory)
 import qualified ErrUtils
 import qualified Exception (ExceptionMonad)
+#if __GLASGOW_HASKELL__ >= 800
+import qualified DynFlags
+#endif
 import qualified GHC
 import qualified GHC.Paths
 import qualified Outputable
@@ -255,7 +258,14 @@ runCommand state clientSend (CmdFindSymbol symbol files) = do
 
 
 
-#if __GLASGOW_HASKELL__ >= 706
+#if __GLASGOW_HASKELL__ >= 800
+logAction :: IORef State -> ClientSend -> GHC.DynFlags -> DynFlags.WarnReason -> GHC.Severity -> GHC.SrcSpan -> Outputable.PprStyle -> ErrUtils.MsgDoc -> IO ()
+logAction state clientSend dflags _ severity srcspan style msg =
+    let out = Outputable.renderWithStyle dflags fullMsg style
+        _ = severity
+    in logActionSend state clientSend severity out
+    where fullMsg = ErrUtils.mkLocMessage severity srcspan msg
+#elif __GLASGOW_HASKELL__ >= 706
 logAction :: IORef State -> ClientSend -> GHC.DynFlags -> GHC.Severity -> GHC.SrcSpan -> Outputable.PprStyle -> ErrUtils.MsgDoc -> IO ()
 logAction state clientSend dflags severity srcspan style msg =
     let out = Outputable.renderWithStyle dflags fullMsg style
