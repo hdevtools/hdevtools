@@ -83,6 +83,10 @@ executable hdevtools
   if impl(ghc >= 7.7)
     build-depends:     Cabal >= 1.18
 
-  if impl(ghc >= 7.9)
+  if impl(ghc >= 7.9 && < 8.0)
     build-depends:     Cabal >= 1.22,
                        bin-package-db
+
+  if impl(ghc >= 8.0)
+    build-depends:     Cabal >= 1.24,
+                       ghc-boot >= 8.0
