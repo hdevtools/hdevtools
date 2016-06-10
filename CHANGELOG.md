@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3.2 - 2016-06-09
+
+ * Added GHC 8.0.x support
+
 ## 0.1.3.1 - 2016-05-13
 
  * Added support for new Cabal versions
