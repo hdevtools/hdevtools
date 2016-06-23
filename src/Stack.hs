@@ -6,7 +6,6 @@ module Stack
       , getStackConfig
       ) where
 
-import Data.Maybe (listToMaybe)
 import Data.Char (isSpace)
 
 #if __GLASGOW_HASKELL__ < 709
@@ -30,10 +29,7 @@ data StackConfig = StackConfig { stackYaml :: FilePath
 
 -- | Search for a @stack.yaml@ upwards in given file path tree.
 findStackYaml :: FilePath -> IO (Maybe FilePath)
-findStackYaml p = listToMaybe <$> filterM doesFileExist paths
-  where
-    paths      = [ d </> "stack.yaml" | d <- pathsToRoot dir]
-    dir        = takeDirectory p
+findStackYaml = execInPath "stack path --config-location"
 
 -- | Run @stack path@ to compute @StackConfig@
 getStackConfig :: CommandExtra -> IO (Maybe StackConfig)
@@ -42,13 +38,6 @@ getStackConfig CommandExtra { ceStackYamlPath = Just p } = do
     dbs <- getStackDbs p
     dist <- getStackDist p
     return $ StackConfig p <$> dist <*> dbs
-
-pathsToRoot :: FilePath -> [FilePath]
-pathsToRoot p
-  | p == parent = [p]
-  | otherwise   = p : pathsToRoot parent
-  where
-    parent      = takeDirectory p
 
 --------------------------------------------------------------------------------
 getStackDist :: FilePath -> IO (Maybe FilePath)
