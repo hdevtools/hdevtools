@@ -11,7 +11,7 @@ import System.IO (Handle, hClose, hFlush, hGetLine, hPutStrLn)
 import System.IO.Error (ioeGetErrorType, isAlreadyInUseError, isDoesNotExistError)
 
 import CommandLoop (newCommandLoopState, Config, updateConfig, startCommandLoop)
-import Types (ClientDirective(..), Command, emptyCommandExtra, ServerDirective(..))
+import Types (ClientDirective(..), Command, CommandExtra(..), ServerDirective(..))
 import Util (readMaybe)
 
 createListenSocket :: FilePath -> IO Socket
@@ -23,8 +23,8 @@ createListenSocket socketPath = do
             removeFile socketPath
             listenOn (UnixSocket socketPath)
 
-startServer :: FilePath -> Maybe Socket -> IO ()
-startServer socketPath mbSock = do
+startServer :: FilePath -> Maybe Socket -> CommandExtra -> IO ()
+startServer socketPath mbSock cmdExtra = do
     case mbSock of
         Nothing -> bracket (createListenSocket socketPath) cleanup go
         Just sock -> (go sock) `finally` (cleanup sock)
@@ -39,7 +39,7 @@ startServer socketPath mbSock = do
         state <- newCommandLoopState
         currentClient <- newIORef Nothing
         configRef <- newIORef Nothing
-        config <- updateConfig Nothing emptyCommandExtra
+        config <- updateConfig Nothing cmdExtra
         startCommandLoop state (clientSend currentClient) (getNextCommand currentClient sock configRef) config Nothing
 
     removeSocketFile :: IO ()

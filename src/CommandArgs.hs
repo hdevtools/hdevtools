@@ -34,7 +34,9 @@ fullVersion =
 data HDevTools
     = Admin
         { socket       :: Maybe FilePath
+        , ghcOpts :: [String]
         , start_server :: Bool
+        , cabalOpts :: [String]
         , noDaemon     :: Bool
         , status       :: Bool
         , stop_server  :: Bool
@@ -82,6 +84,8 @@ data HDevTools
 dummyAdmin :: HDevTools
 dummyAdmin = Admin
     { socket       = Nothing
+    , ghcOpts = []
+    , cabalOpts = []
     , start_server = False
     , noDaemon     = False
     , status       = False
@@ -139,6 +143,8 @@ dummyFindSymbol = FindSymbol
 admin :: Annotate Ann
 admin = record dummyAdmin
     [ socket       := def += typFile += help "socket file to use"
+    , ghcOpts  := def += typ "OPTION" += help "ghc options"
+    , cabalOpts := def += typ "OPTION"  += help "cabal options"
     , start_server := def            += help "start server"
     , noDaemon     := def            += help "do not daemonize (only if --start-server)"
     , status       := def            += help "show status of server"

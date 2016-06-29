@@ -76,12 +76,12 @@ main = do
         FindSymbol {} -> doFindSymbol sock args extra
 
 doAdmin :: FilePath -> HDevTools -> CommandExtra -> IO ()
-doAdmin sock args _extra
+doAdmin sock args cmdExtra
     | start_server args =
-        if noDaemon args then startServer sock Nothing
+        if noDaemon args then startServer sock Nothing cmdExtra
             else do
                 s <- createListenSocket sock
-                daemonize True $ startServer sock (Just s)
+                daemonize True $ startServer sock (Just s) cmdExtra
     | status args = getServerStatus sock
     | stop_server args = stopServer sock
     | otherwise = do
