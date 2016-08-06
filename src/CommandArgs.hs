@@ -40,6 +40,7 @@ data HDevTools
         , noDaemon     :: Bool
         , status       :: Bool
         , stop_server  :: Bool
+        , debug :: Bool
         }
     | Check
         { socket  :: Maybe FilePath
@@ -48,12 +49,14 @@ data HDevTools
         , path    :: Maybe String
         , file    :: String
         , json    :: Bool
+        , debug :: Bool
         }
     | ModuleFile
         { socket  :: Maybe FilePath
         , ghcOpts :: [String]
         , cabalOpts :: [String]
         , module_ :: String
+        , debug :: Bool
         }
     | Info
         { socket     :: Maybe FilePath
@@ -62,6 +65,7 @@ data HDevTools
         , path       :: Maybe String
         , file       :: String
         , identifier :: String
+        , debug :: Bool
         }
     | Type
         { socket  :: Maybe FilePath
@@ -71,6 +75,7 @@ data HDevTools
         , file    :: String
         , line    :: Int
         , col     :: Int
+        , debug :: Bool
         }
     | FindSymbol
         { socket :: Maybe FilePath
@@ -78,6 +83,7 @@ data HDevTools
         , cabalOpts :: [String]
         , symbol :: String
         , files :: [String]
+        , debug :: Bool
         }
     deriving (Show, Data, Typeable)
 
@@ -90,6 +96,7 @@ dummyAdmin = Admin
     , noDaemon     = False
     , status       = False
     , stop_server  = False
+    , debug = False
     }
 
 dummyCheck :: HDevTools
@@ -100,6 +107,7 @@ dummyCheck = Check
     , path    = Nothing
     , file    = ""
     , json    = False
+    , debug = False
     }
 
 dummyModuleFile :: HDevTools
@@ -108,6 +116,7 @@ dummyModuleFile = ModuleFile
     , ghcOpts = []
     , cabalOpts = []
     , module_ = ""
+    , debug = False
     }
 
 dummyInfo :: HDevTools
@@ -118,6 +127,7 @@ dummyInfo = Info
     , path       = Nothing
     , file       = ""
     , identifier = ""
+    , debug = False
     }
 
 dummyType :: HDevTools
@@ -129,6 +139,7 @@ dummyType = Type
     , file    = ""
     , line    = 0
     , col     = 0
+    , debug = False
     }
 
 dummyFindSymbol :: HDevTools
@@ -138,6 +149,7 @@ dummyFindSymbol = FindSymbol
     , cabalOpts = []
     , symbol = ""
     , files = []
+    , debug = False
     }
 
 admin :: Annotate Ann
@@ -149,6 +161,7 @@ admin = record dummyAdmin
     , noDaemon     := def            += help "do not daemonize (only if --start-server)"
     , status       := def            += help "show status of server"
     , stop_server  := def            += help "shutdown the server"
+    , debug    := def                 += help "enable debug output"
     ] += help "Interactions with the server"
 
 check :: Annotate Ann
@@ -159,6 +172,7 @@ check = record dummyCheck
     , path     := def += typFile      += help "path to target file"
     , file     := def += typFile      += argPos 0 += opt ""
     , json     := def                 += help "render output as JSON"
+    , debug    := def                 += help "enable debug output"
     ] += help "Check a haskell source file for errors and warnings"
 
 moduleFile :: Annotate Ann
@@ -167,6 +181,7 @@ moduleFile = record dummyModuleFile
     , ghcOpts  := def += typ "OPTION" += help "ghc options"
     , cabalOpts := def += typ "OPTION"  += help "cabal options"
     , module_  := def += typ "MODULE" += argPos 0
+    , debug    := def                 += help "enable debug output"
     ] += help "Get the haskell source file corresponding to a module name"
 
 info :: Annotate Ann
@@ -177,6 +192,7 @@ info = record dummyInfo
     , path       := def += typFile      += help "path to target file"
     , file       := def += typFile      += argPos 0 += opt ""
     , identifier := def += typ "IDENTIFIER" += argPos 1
+    , debug      := def                 += help "enable debug output"
     ] += help "Get info from GHC about the specified identifier"
 
 type_ :: Annotate Ann
@@ -184,6 +200,7 @@ type_ = record dummyType
     [ socket   := def += typFile += help "socket file to use"
     , ghcOpts  := def += typ "OPTION" += help "ghc options"
     , cabalOpts := def += typ "OPTION"  += help "cabal options"
+    , debug    := def                 += help "enable debug output"
     , path     := def += typFile      += help "path to target file"
     , file     := def += typFile      += argPos 0 += opt ""
     , line     := def += typ "LINE"   += argPos 1
@@ -197,6 +214,7 @@ findSymbol = record dummyFindSymbol
     , cabalOpts := def += typ "OPTION"  += help "cabal options"
     , symbol   := def += typ "SYMBOL" += argPos 0
     , files    := def += typFile += args
+    , debug    := def                 += help "enable debug output"
     ] += help "List the modules where the given symbol could be found"
 
 full :: String -> Annotate Ann
