@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3.3 - UNRELEASED
+
+ * Determine GHC lib dir using stack.
+
 ## 0.1.3.2 - 2016-06-09
 
  * Added GHC 8.0.x support
