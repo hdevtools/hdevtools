@@ -2,7 +2,7 @@
 
 ## 0.1.3.3 - UNRELEASED
 
- * Determine GHC lib dir using stack.
+ * Determine GHC libdir and binaries correctly using stack.
 
 ## 0.1.3.2 - 2016-06-09
 

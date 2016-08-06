@@ -24,6 +24,7 @@ import Types
 data StackConfig = StackConfig { stackYaml :: FilePath
                                , stackDist :: FilePath
                                , stackDbs  :: [FilePath]
+                               , stackGhcBinDir :: FilePath
                                , stackGhcLibDir :: FilePath
                                }
                    deriving (Eq, Show)
@@ -38,12 +39,17 @@ getStackConfig CommandExtra { ceStackYamlPath = Nothing } = return Nothing
 getStackConfig CommandExtra { ceStackYamlPath = Just p } = do
     dbs <- getStackDbs root
     dist <- getStackDist root
+    ghcBinDir <- getStackGhcBinDir root
     ghcLibDir <- getStackGhcLibDir root
     return $ StackConfig p <$> dist
                            <*> dbs
+                           <*> ghcBinDir
                            <*> ghcLibDir
   where
     root = takeDirectory p
+
+getStackGhcBinDir :: FilePath -> IO (Maybe FilePath)
+getStackGhcBinDir = fmap (fmap trim) . execInPath "stack path --compiler-bin"
 
 getStackGhcLibDir :: FilePath -> IO (Maybe FilePath)
 getStackGhcLibDir = fmap (fmap takeDirectory) . execInPath "stack path --global-pkg-db"
