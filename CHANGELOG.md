@@ -1,8 +1,8 @@
 # Changelog
 
-## 0.1.3.3 - UNRELEASED
+## 0.1.4.0 - 2016-08-08
 
- * Determine GHC libdir and binaries correctly using stack.
+ * Determine GHC libdir and binaries using stack.
 
 ## 0.1.3.2 - 2016-06-09
 
