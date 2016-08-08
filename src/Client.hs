@@ -44,7 +44,7 @@ serverCommand sock cmd cmdExtra = do
             startClientReadLoop h
         Left _ -> do
             s <- createListenSocket sock
-            daemonize False $ startServer sock (Just s)
+            daemonize False $ startServer sock (Just s) cmdExtra
             serverCommand sock cmd cmdExtra
 
 startClientReadLoop :: Handle -> IO ()

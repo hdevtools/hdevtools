@@ -7,6 +7,7 @@ module CommandLoop
     , startCommandLoop
     ) where
 
+import Control.Applicative ((<|>))
 import Control.Monad (when)
 import Data.IORef
 import Data.List (find, intercalate)
@@ -101,7 +102,7 @@ withWarnings state warningsValue action = do
 
 startCommandLoop :: IORef State -> ClientSend -> IO (Maybe CommandObj) -> Config -> Maybe Command -> IO ()
 startCommandLoop state clientSend getNextCommand initialConfig mbInitialCommand = do
-    continue <- GHC.runGhc (Just GHC.Paths.libdir) $ do
+    continue <- GHC.runGhc ghcLibDir $ do
         configResult <- configSession state clientSend initialConfig
         case configResult of
           Left e -> do
@@ -119,7 +120,10 @@ startCommandLoop state clientSend getNextCommand initialConfig mbInitialCommand 
             -- Exit
             return ()
         Just (cmd, config) -> startCommandLoop state clientSend getNextCommand config (Just cmd)
-    where
+  where
+    ghcLibDir = stackGhcLibDir <$> configStack initialConfig
+                <|> Just GHC.Paths.libdir
+
     processNextCommand :: Bool -> GHC.Ghc (Maybe CommandObj)
     processNextCommand forceReconfig = do
         mbNextCmd <- liftIO getNextCommand

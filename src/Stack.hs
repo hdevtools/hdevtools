@@ -24,20 +24,35 @@ import Types
 data StackConfig = StackConfig { stackYaml :: FilePath
                                , stackDist :: FilePath
                                , stackDbs  :: [FilePath]
+                               , stackGhcBinDir :: FilePath
+                               , stackGhcLibDir :: FilePath
                                }
                    deriving (Eq, Show)
 
 -- | Search for a @stack.yaml@ upwards in given file path tree.
 findStackYaml :: FilePath -> IO (Maybe FilePath)
-findStackYaml = execInPath "stack path --config-location"
+findStackYaml = fmap (fmap trim) . execInPath "stack path --config-location"
 
 -- | Run @stack path@ to compute @StackConfig@
 getStackConfig :: CommandExtra -> IO (Maybe StackConfig)
 getStackConfig CommandExtra { ceStackYamlPath = Nothing } = return Nothing
 getStackConfig CommandExtra { ceStackYamlPath = Just p } = do
-    dbs <- getStackDbs p
-    dist <- getStackDist p
-    return $ StackConfig p <$> dist <*> dbs
+    dbs <- getStackDbs root
+    dist <- getStackDist root
+    ghcBinDir <- getStackGhcBinDir root
+    ghcLibDir <- getStackGhcLibDir root
+    return $ StackConfig p <$> dist
+                           <*> dbs
+                           <*> ghcBinDir
+                           <*> ghcLibDir
+  where
+    root = takeDirectory p
+
+getStackGhcBinDir :: FilePath -> IO (Maybe FilePath)
+getStackGhcBinDir = fmap (fmap trim) . execInPath "stack path --compiler-bin"
+
+getStackGhcLibDir :: FilePath -> IO (Maybe FilePath)
+getStackGhcLibDir = fmap (fmap takeDirectory) . execInPath "stack path --global-pkg-db"
 
 --------------------------------------------------------------------------------
 getStackDist :: FilePath -> IO (Maybe FilePath)
@@ -116,5 +131,5 @@ execInPath cmd p = do
         -- no stack command is in the PATH.
         Left _  -> Nothing
   where
-    prc          = (shell cmd) { cwd = Just $ takeDirectory p }
+    prc          = (shell cmd) { cwd = Just p }
 #endif

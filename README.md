@@ -44,12 +44,8 @@ easiest way is from [Stackage][14] using [stack][15]:
 $ stack install hdevtools
 ```
 
-**Note:** As stack manages matching GHC versions, the appropriate compiler has
-to be available to `hdevtools`. Thus hdevtools has to be started with `stack exec`,
-for example using the alias:
-```
-$ alias hdevtools="stack exec --no-ghc-package-path hdevtools --"
-```
+**Note:** `hdevtools` automatically discovers compiler and libraries installed
+via stack.
 
 Alternatively one can install from [Hackage][1] via cabal install:
 ```

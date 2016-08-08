@@ -102,13 +102,17 @@ allComponentsBy pkg_descr f =
 
 stackifyFlags :: ConfigFlags -> Maybe StackConfig -> ConfigFlags
 stackifyFlags cfg Nothing   = cfg
-stackifyFlags cfg (Just si) = cfg { configDistPref    = toFlag dist
+stackifyFlags cfg (Just si) = cfg { configHcPath = toFlag ghc
+                                  , configHcPkg = toFlag ghcPkg
+                                  , configDistPref    = toFlag dist
                                   , configPackageDBs  = pdbs
                                   }
     where
       pdbs                  = [Nothing, Just GlobalPackageDB] ++ pdbs'
       pdbs'                 = Just . SpecificPackageDB <$> stackDbs si
       dist                  = stackDist si
+      ghc = stackGhcBinDir si </> "ghc"
+      ghcPkg = stackGhcBinDir si </> "ghc-pkg"
 
 -- via: https://groups.google.com/d/msg/haskell-stack/8HJ6DHAinU0/J68U6AXTsasJ
 -- cabal configure --package-db=clear --package-db=global --package-db=$(stack path --snapshot-pkg-db) --package-db=$(stack path --local-pkg-db)

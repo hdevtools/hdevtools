@@ -6,7 +6,9 @@ module Main where
 import Data.Traversable (traverse)
 #endif
 
+import Control.Monad (when)
 import Data.Maybe (fromMaybe)
+import Data.Monoid ((<>))
 import System.Directory (getCurrentDirectory)
 import System.Environment (getProgName)
 import System.IO (hPutStrLn, stderr)
@@ -57,7 +59,11 @@ main = do
     let argPath = pathArg args
     dir  <- maybe getCurrentDirectory (return . takeDirectory) argPath
     mCabalFile <- findCabalFile dir >>= traverse absoluteFilePath
+    when (debug args) .
+      putStrLn $ "Cabal file: " <> show mCabalFile
     mStackYaml <- findStackYaml dir
+    when (debug args) .
+      putStrLn $ "Stack file: " <> show mStackYaml
     let extra = emptyCommandExtra
                     { cePath = argPath
                     , ceGhcOptions  = ghcOpts args
@@ -67,6 +73,8 @@ main = do
                     }
     let defaultSocketPath = maybe "" takeDirectory mCabalFile </> defaultSocketFile
     let sock = fromMaybe defaultSocketPath $ socket args
+    when (debug args) .
+      putStrLn $ "Socket file: " <> show sock
     case args of
         Admin {} -> doAdmin sock args extra
         Check {} -> doCheck sock args extra
@@ -76,12 +84,12 @@ main = do
         FindSymbol {} -> doFindSymbol sock args extra
 
 doAdmin :: FilePath -> HDevTools -> CommandExtra -> IO ()
-doAdmin sock args _extra
+doAdmin sock args cmdExtra
     | start_server args =
-        if noDaemon args then startServer sock Nothing
+        if noDaemon args then startServer sock Nothing cmdExtra
             else do
                 s <- createListenSocket sock
-                daemonize True $ startServer sock (Just s)
+                daemonize True $ startServer sock (Just s) cmdExtra
     | status args = getServerStatus sock
     | stop_server args = stopServer sock
     | otherwise = do
