@@ -31,7 +31,7 @@ data StackConfig = StackConfig { stackYaml :: FilePath
 
 -- | Search for a @stack.yaml@ upwards in given file path tree.
 findStackYaml :: FilePath -> IO (Maybe FilePath)
-findStackYaml = fmap (fmap trim) . execInPath "stack path --config-location"
+findStackYaml = fmap (fmap trim) . execStackInPath "path --config-location"
 
 -- | Run @stack path@ to compute @StackConfig@
 getStackConfig :: CommandExtra -> IO (Maybe StackConfig)
@@ -49,29 +49,18 @@ getStackConfig CommandExtra { ceStackYamlPath = Just p } = do
     root = takeDirectory p
 
 getStackGhcBinDir :: FilePath -> IO (Maybe FilePath)
-getStackGhcBinDir = fmap (fmap trim) . execInPath "stack path --compiler-bin"
+getStackGhcBinDir = fmap (fmap trim) . execStackInPath "path --compiler-bin"
 
 getStackGhcLibDir :: FilePath -> IO (Maybe FilePath)
-getStackGhcLibDir = fmap (fmap takeDirectory) . execInPath "stack path --global-pkg-db"
+getStackGhcLibDir = fmap (fmap takeDirectory) . execStackInPath "path --global-pkg-db"
 
---------------------------------------------------------------------------------
 getStackDist :: FilePath -> IO (Maybe FilePath)
---------------------------------------------------------------------------------
-getStackDist p = (trim <$>) <$> execInPath cmd p
-  where
-    cmd        = "stack path --dist-dir"
-    -- dir        = takeDirectory p
-    -- splice     = (dir </>) . trim
+getStackDist p = (trim <$>) <$> execStackInPath "path --dist-dir" p
 
---------------------------------------------------------------------------------
 getStackDbs :: FilePath -> IO (Maybe [FilePath])
---------------------------------------------------------------------------------
-getStackDbs p = do mpp <- execInPath cmd p
-                   case mpp of
-                       Just pp -> Just <$> extractDbs pp
-                       Nothing -> return Nothing
-  where
-    cmd       = "stack path --ghc-package-path"
+getStackDbs p =
+  execStackInPath "path --ghc-package-path" p >>=
+  maybe (return Nothing) (\pp -> return <$> extractDbs pp)
 
 extractDbs :: String -> IO [FilePath]
 extractDbs = filterM doesDirectoryExist . stringPaths
@@ -94,6 +83,11 @@ trim :: String -> String
 trim = f . f
    where
      f = reverse . dropWhile isSpace
+
+-- Execute stack command in path (if stack is available)
+execStackInPath :: String -> FilePath -> IO (Maybe String)
+execStackInPath a p =
+  findExecutable "stack" >>= maybe (return Nothing) (const $ execInPath ("stack " ++ a) p)
 
 #if __GLASGOW_HASKELL__ < 709
 execInPath :: String -> FilePath -> IO (Maybe String)
