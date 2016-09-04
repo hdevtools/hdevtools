@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4.1 - UNRELEASED
+
+ * Do not try to execute `stack` commands if not available.
+
 ## 0.1.4.0 - 2016-08-08
 
  * Determine GHC libdir and binaries using stack.
