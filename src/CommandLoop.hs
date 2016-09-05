@@ -8,7 +8,7 @@ module CommandLoop
     ) where
 
 import Control.Applicative ((<|>))
-import Control.Monad (when)
+import Control.Monad (when, void)
 import Data.IORef
 import Data.List (find, intercalate)
 #if __GLASGOW_HASKELL__ < 709
@@ -67,6 +67,7 @@ data Config = Config
     { configGhcOpts :: [String]
     , configCabal   :: Maybe CabalConfig
     , configStack   :: Maybe StackConfig
+    , configTH      :: Bool
     }
     deriving (Eq, Show)
 
@@ -82,6 +83,7 @@ updateConfig mConfig cmdExtra = do
     return $ Config { configGhcOpts = "-O0" : ceGhcOptions cmdExtra
                     , configCabal = mbCabalConfig
                     , configStack = mbStackConfig
+                    , configTH    = True
                     }
  where
   msc = mConfig >>= configStack
@@ -112,7 +114,7 @@ startCommandLoop state clientSend getNextCommand initialConfig mbInitialCommand 
                   ]
               processNextCommand True
           Right _ -> do
-              doMaybe mbInitialCommand $ \cmd -> sendErrors (runCommand state clientSend cmd)
+              doMaybe mbInitialCommand $ \cmd -> sendErrors (runCommand state clientSend (configTH initialConfig) cmd)
               processNextCommand False
 
     case continue of
@@ -134,7 +136,7 @@ startCommandLoop state clientSend getNextCommand initialConfig mbInitialCommand 
             Just (cmd, config) ->
                 if forceReconfig || (config /= initialConfig)
                     then return (Just (cmd, config))
-                    else sendErrors (runCommand state clientSend cmd) >> processNextCommand False
+                    else sendErrors (runCommand state clientSend (configTH initialConfig) cmd) >> processNextCommand False
 
     sendErrors :: GHC.Ghc () -> GHC.Ghc ()
     sendErrors action = GHC.gcatch action $ \e -> do
@@ -178,17 +180,25 @@ configSession state clientSend config = do
     handleGhcError :: GHC.GhcException -> GHC.Ghc String
     handleGhcError e = return $ GHC.showGhcException e ""
 
-runCommand :: IORef State -> ClientSend -> Command -> GHC.Ghc ()
-runCommand _ clientSend (CmdCheck file) = do
+runCommand :: IORef State -> ClientSend -> Bool -> Command -> GHC.Ghc ()
+runCommand _ clientSend th (CmdCheck file) = do
     let noPhase = Nothing
     target <- GHC.guessTarget file noPhase
     GHC.setTargets [target]
-    let handler err = GHC.printException err >> return GHC.Failed
-    flag <- GHC.handleSourceError handler (GHC.load GHC.LoadAllTargets)
-    liftIO $ case flag of
-        GHC.Succeeded -> clientSend (ClientExit ExitSuccess)
-        GHC.Failed -> clientSend (ClientExit (ExitFailure 1))
-runCommand _ clientSend (CmdModuleFile moduleName) = do
+    graph <- GHC.depanal [] True
+    if th || (not $ GHC.needsTemplateHaskell graph)
+        then do
+           when (GHC.needsTemplateHaskell graph) $ do
+               flags <- GHC.getSessionDynFlags
+               void . GHC.setSessionDynFlags $ flags { GHC.hscTarget = GHC.HscInterpreted, GHC.ghcLink = GHC.LinkInMemory }
+           let handler err = GHC.printException err >> return GHC.Failed
+           flag <- GHC.handleSourceError handler (GHC.load GHC.LoadAllTargets)
+           liftIO $ case flag of
+               GHC.Succeeded -> clientSend (ClientExit ExitSuccess)
+               GHC.Failed -> clientSend (ClientExit (ExitFailure 1))
+        else liftIO $ mapM_ clientSend [ ClientStderr "Template haskell required but not activated"
+                                       , ClientExit (ExitFailure 1)]
+runCommand _ clientSend _ (CmdModuleFile moduleName) = do
     moduleGraph <- GHC.getModuleGraph
     case find (moduleSummaryMatchesModuleName moduleName) moduleGraph of
         Nothing ->
@@ -211,7 +221,7 @@ runCommand _ clientSend (CmdModuleFile moduleName) = do
     where
     moduleSummaryMatchesModuleName modName modSummary =
         modName == (GHC.moduleNameString . GHC.moduleName . GHC.ms_mod) modSummary
-runCommand state clientSend (CmdInfo file identifier) = do
+runCommand state clientSend _ (CmdInfo file identifier) = do
     result <- withWarnings state False $
         getIdentifierInfo file identifier
     case result of
@@ -224,7 +234,7 @@ runCommand state clientSend (CmdInfo file identifier) = do
             [ ClientStdout info
             , ClientExit ExitSuccess
             ]
-runCommand state clientSend (CmdType file (line, col)) = do
+runCommand state clientSend _ (CmdType file (line, col)) = do
     result <- withWarnings state False $
         getType file (line, col)
     case result of
@@ -246,7 +256,7 @@ runCommand state clientSend (CmdType file (line, col)) = do
             , show endCol , " "
             , "\"", t, "\""
             ]
-runCommand state clientSend (CmdFindSymbol symbol files) = do
+runCommand state clientSend _ (CmdFindSymbol symbol files) = do
     result <- withWarnings state False $ findSymbol symbol files
     case result of
         []      -> liftIO $ mapM_ clientSend
