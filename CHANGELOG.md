@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4.2 - UNRELEASED
+
+ * Fixed ghc library directory lookup via stack for system installed ghc.
+
 ## 0.1.4.1 - 2016-09-04
 
  * Do not try to execute `stack` commands if not available.
