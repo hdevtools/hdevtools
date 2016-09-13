@@ -14,6 +14,7 @@ data CommandExtra = CommandExtra
   , ceCabalFilePath :: Maybe FilePath
   , ceCabalOptions :: [String]
   , ceStackYamlPath :: Maybe FilePath
+  , ceTemplateHaskell :: Bool
   } deriving (Read, Show)
 
 emptyCommandExtra :: CommandExtra
@@ -22,6 +23,7 @@ emptyCommandExtra = CommandExtra { cePath = Nothing
                                  , ceCabalFilePath = Nothing
                                  , ceCabalOptions = []
                                  , ceStackYamlPath = Nothing
+                                 , ceTemplateHaskell = True
                                  }
 
 data ServerDirective

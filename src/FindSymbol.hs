@@ -48,16 +48,16 @@ findSymbol symbol files = do
 
 findSymbolInFile :: SymbolName -> FilePath -> GHC.Ghc [GHC.Module]
 findSymbolInFile symbol file = do
-   loadFile
+    -- loadFile
    filterM (containsSymbol symbol) =<< fileModules
    where
-   loadFile = do
-      let noPhase = Nothing
-      target <- GHC.guessTarget file noPhase
-      GHC.setTargets [target]
-      let handler err = GHC.printException err >> return GHC.Failed
-      _ <- GHC.handleSourceError handler (GHC.load GHC.LoadAllTargets)
-      return ()
+       --    loadFile = do
+       --       let noPhase = Nothing
+       --       target <- GHC.guessTarget file noPhase
+       --       GHC.setTargets [target]
+       --       let handler err = GHC.printException err >> return GHC.Failed
+       --       _ <- GHC.handleSourceError handler (GHC.load GHC.LoadAllTargets)
+       --       return ()
 
    fileModules = map GHC.ms_mod <$> GHC.getModuleGraph
 

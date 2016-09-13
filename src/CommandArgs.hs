@@ -50,6 +50,7 @@ data HDevTools
         , file    :: String
         , json    :: Bool
         , debug :: Bool
+        , noTH :: Bool
         }
     | ModuleFile
         { socket  :: Maybe FilePath
@@ -66,6 +67,7 @@ data HDevTools
         , file       :: String
         , identifier :: String
         , debug :: Bool
+        , noTH :: Bool
         }
     | Type
         { socket  :: Maybe FilePath
@@ -76,6 +78,7 @@ data HDevTools
         , line    :: Int
         , col     :: Int
         , debug :: Bool
+        , noTH :: Bool
         }
     | FindSymbol
         { socket :: Maybe FilePath
@@ -84,6 +87,7 @@ data HDevTools
         , symbol :: String
         , files :: [String]
         , debug :: Bool
+        , noTH :: Bool
         }
     deriving (Show, Data, Typeable)
 
@@ -108,6 +112,7 @@ dummyCheck = Check
     , file    = ""
     , json    = False
     , debug = False
+    , noTH = False
     }
 
 dummyModuleFile :: HDevTools
@@ -128,6 +133,7 @@ dummyInfo = Info
     , file       = ""
     , identifier = ""
     , debug = False
+    , noTH = False
     }
 
 dummyType :: HDevTools
@@ -140,6 +146,7 @@ dummyType = Type
     , line    = 0
     , col     = 0
     , debug = False
+    , noTH = False
     }
 
 dummyFindSymbol :: HDevTools
@@ -150,6 +157,7 @@ dummyFindSymbol = FindSymbol
     , symbol = ""
     , files = []
     , debug = False
+    , noTH = False
     }
 
 admin :: Annotate Ann
@@ -173,6 +181,7 @@ check = record dummyCheck
     , file     := def += typFile      += argPos 0 += opt ""
     , json     := def                 += help "render output as JSON"
     , debug    := def                 += help "enable debug output"
+    , noTH     := def                 += help "disable template haskell"
     ] += help "Check a haskell source file for errors and warnings"
 
 moduleFile :: Annotate Ann
@@ -193,6 +202,7 @@ info = record dummyInfo
     , file       := def += typFile      += argPos 0 += opt ""
     , identifier := def += typ "IDENTIFIER" += argPos 1
     , debug      := def                 += help "enable debug output"
+    , noTH     := def                 += help "disable template haskell"
     ] += help "Get info from GHC about the specified identifier"
 
 type_ :: Annotate Ann
@@ -205,6 +215,7 @@ type_ = record dummyType
     , file     := def += typFile      += argPos 0 += opt ""
     , line     := def += typ "LINE"   += argPos 1
     , col      := def += typ "COLUMN" += argPos 2
+    , noTH     := def                 += help "disable template haskell"
     ] += help "Get the type of the expression at the specified line and column"
 
 findSymbol :: Annotate Ann
@@ -215,6 +226,7 @@ findSymbol = record dummyFindSymbol
     , symbol   := def += typ "SYMBOL" += argPos 0
     , files    := def += typFile += args
     , debug    := def                 += help "enable debug output"
+    , noTH     := def                 += help "disable template haskell"
     ] += help "List the modules where the given symbol could be found"
 
 full :: String -> Annotate Ann
