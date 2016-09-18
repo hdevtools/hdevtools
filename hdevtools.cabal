@@ -72,7 +72,11 @@ executable hdevtools
                        ghc-paths,
                        syb,
                        network,
+                       mtl,
+                       path,
+                       path-io >= 1.2.0,
                        process,
+                       safe,
                        time,
                        transformers,
                        unix
