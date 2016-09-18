@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE TemplateHaskell #-}
 module Stack
       ( -- * The bits of information needed from `stack`
         StackConfig (..)
@@ -17,7 +18,12 @@ import System.Process
 import System.FilePath
 import System.Directory
 import Control.Monad (filterM)
+import Control.Monad.Writer (WriterT, tell, execWriterT)
 import Control.Exception
+import Data.Foldable (find)
+import Path (Path, Abs, Rel, Dir, File, parseAbsDir, filename, toFilePath, mkRelFile, parent)
+import Path.IO (walkDir, WalkAction(..))
+import Safe (headMay)
 import Types
 
 -- TODO: Move into Types?
@@ -52,7 +58,13 @@ getStackGhcBinDir :: FilePath -> IO (Maybe FilePath)
 getStackGhcBinDir = fmap (fmap trim) . execStackInPath "path --compiler-bin"
 
 getStackGhcLibDir :: FilePath -> IO (Maybe FilePath)
-getStackGhcLibDir = fmap (fmap takeDirectory) . execStackInPath "path --global-pkg-db"
+getStackGhcLibDir p = do
+  mroot <- execStackInPath "path --compiler-bin" p
+  -- Libdir is located differently on some systems
+  case takeDirectory . trim <$> mroot of
+    Nothing -> return Nothing
+    Just root -> parseAbsDir root >>=
+      fmap (fmap (toFilePath . parent)) . findFileRecursive $(mkRelFile "settings")
 
 getStackDist :: FilePath -> IO (Maybe FilePath)
 getStackDist p = (trim <$>) <$> execStackInPath "path --dist-dir" p
@@ -65,12 +77,20 @@ getStackDbs p =
 extractDbs :: String -> IO [FilePath]
 extractDbs = filterM doesDirectoryExist . stringPaths
 
+-- | Find a file below a given root file path. This function uses path and
+-- path-io packages, which should be used in the future anyways.
+findFileRecursive :: Path Rel File -> Path Abs Dir -> IO (Maybe (Path Abs File))
+findFileRecursive s =
+  fmap headMay . execWriterT . walkDir visit
+ where
+  visit :: Path Abs Dir -> [Path Abs Dir] -> [Path Abs File] -> WriterT [Path Abs File] IO WalkAction
+  visit _ _ fs =
+    case find (\f -> filename f == s) fs of
+      Just f -> tell [f] >> return WalkFinish
+      Nothing -> return $ WalkExclude []
+
 stringPaths :: String -> [String]
 stringPaths = splitBy ':' . trim
-
---------------------------------------------------------------------------------
--- | Generic Helpers
---------------------------------------------------------------------------------
 
 splitBy :: Char -> String -> [String]
 splitBy c str

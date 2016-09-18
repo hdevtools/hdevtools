@@ -1,5 +1,6 @@
 flags: {}
 packages:
 - '.'
-extra-deps: []
+extra-deps:
+- path-io-1.2.0
 resolver: lts-6.10
