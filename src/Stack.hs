@@ -52,7 +52,12 @@ getStackGhcBinDir :: FilePath -> IO (Maybe FilePath)
 getStackGhcBinDir = fmap (fmap trim) . execStackInPath "path --compiler-bin"
 
 getStackGhcLibDir :: FilePath -> IO (Maybe FilePath)
-getStackGhcLibDir = fmap (fmap $ (</> "lib/ghc/") . takeDirectory) . execStackInPath "path --compiler-bin"
+getStackGhcLibDir p = do
+  compilerBin <- execStackInPath p "path --compiler-bin"
+  -- Libdir prefix is different on some systems
+  case compilerBin of
+    Just b -> fmap takeDirectory <$> findFile [b] "settings"
+    Nothing -> return Nothing
 
 getStackDist :: FilePath -> IO (Maybe FilePath)
 getStackDist p = (trim <$>) <$> execStackInPath "path --dist-dir" p
