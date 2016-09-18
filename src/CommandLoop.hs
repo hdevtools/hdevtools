@@ -270,20 +270,32 @@ runCommand state clientSend conf (CmdType file (line, col)) =
                 , show endCol , " "
                 , "\"", t, "\""
                 ]
-runCommand state clientSend conf (CmdFindSymbol symbol files) =
-    withTargets clientSend files conf $ do
-        result <- withWarnings state False $ findSymbol symbol files
+runCommand state clientSend conf (CmdFindSymbol symbol files) = do
+    -- for the findsymbol command GHC shouldn't output any warnings
+    -- or errors to stdout for the loaded source files, we're only
+    -- interested in the module graph of the loaded targets
+    dynFlags <- GHC.getSessionDynFlags
+    _        <- GHC.setSessionDynFlags dynFlags { GHC.log_action = \_ _ _ _ _ ->
+#if __GLASGOW_HASKELL__ >= 800
+                                                 return . return $ () }
+#else
+                                                 return () }
+#endif
+
+    ret <- withTargets clientSend files conf $ do
+        result <- withWarnings state False $ findSymbol symbol
         case result of
             []      -> liftIO $ mapM_ clientSend
                         [ ClientStderr $ "Couldn't find modules containing '" ++ symbol ++ "'"
                         , ClientExit (ExitFailure 1)
                         ]
             modules -> liftIO $ mapM_ clientSend
-                        [ ClientStdout (formatModules modules)
+                        [ ClientStdout (intercalate "\n" modules)
                         , ClientExit ExitSuccess
                         ]
-        where
-        formatModules = intercalate "\n"
+    -- reset the old log_action
+    _ <- GHC.setSessionDynFlags dynFlags
+    return ret
 
 
 
