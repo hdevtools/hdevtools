@@ -52,19 +52,10 @@ getType file (line, col) =
 
 withModSummary :: String -> (HscTypes.ModSummary -> GHC.Ghc (Either String a)) -> GHC.Ghc (Either String a)
 withModSummary file action = do
-    let noPhase = Nothing
-    target <- GHC.guessTarget file noPhase
-    GHC.setTargets [target]
-
-    let handler err = GHC.printException err >> return GHC.Failed
-    flag <- GHC.handleSourceError handler (GHC.load GHC.LoadAllTargets)
-    case flag of
-        GHC.Failed -> return (Left "Error loading targets")
-        GHC.Succeeded -> do
-            modSummary <- getModuleSummary file
-            case modSummary of
-                Nothing -> return (Left "Module not found in module graph")
-                Just m -> action m
+    modSummary <- getModuleSummary file
+    case modSummary of
+        Nothing -> return (Left "Module not found in module graph")
+        Just m -> action m
 
 getModuleSummary :: FilePath -> GHC.Ghc (Maybe GHC.ModSummary)
 getModuleSummary file = do

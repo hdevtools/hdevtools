@@ -110,7 +110,8 @@ doFileCommand cmdName cmd sock args extra
     | otherwise = do
         absFile <- absoluteFilePath $ file args
         let args' = args { file = absFile }
-        serverCommand sock (cmd args') extra
+            extra' = extra { ceTemplateHaskell = not (noTH args) }
+        serverCommand sock (cmd args') extra'
 
 doCheck :: FilePath -> HDevTools -> CommandExtra -> IO ()
 doCheck = doFileCommand "check" $

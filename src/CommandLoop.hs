@@ -8,7 +8,7 @@ module CommandLoop
     ) where
 
 import Control.Applicative ((<|>))
-import Control.Monad (when)
+import Control.Monad (when, void)
 import Data.IORef
 import Data.List (find, intercalate)
 #if __GLASGOW_HASKELL__ < 709
@@ -67,6 +67,7 @@ data Config = Config
     { configGhcOpts :: [String]
     , configCabal   :: Maybe CabalConfig
     , configStack   :: Maybe StackConfig
+    , configTH      :: Bool
     }
     deriving (Eq, Show)
 
@@ -82,6 +83,7 @@ updateConfig mConfig cmdExtra = do
     return $ Config { configGhcOpts = "-O0" : ceGhcOptions cmdExtra
                     , configCabal = mbCabalConfig
                     , configStack = mbStackConfig
+                    , configTH    = ceTemplateHaskell cmdExtra
                     }
  where
   msc = mConfig >>= configStack
@@ -112,7 +114,7 @@ startCommandLoop state clientSend getNextCommand initialConfig mbInitialCommand 
                   ]
               processNextCommand True
           Right _ -> do
-              doMaybe mbInitialCommand $ \cmd -> sendErrors (runCommand state clientSend cmd)
+              doMaybe mbInitialCommand $ \cmd -> sendErrors (runCommand state clientSend initialConfig cmd)
               processNextCommand False
 
     case continue of
@@ -134,7 +136,7 @@ startCommandLoop state clientSend getNextCommand initialConfig mbInitialCommand 
             Just (cmd, config) ->
                 if forceReconfig || (config /= initialConfig)
                     then return (Just (cmd, config))
-                    else sendErrors (runCommand state clientSend cmd) >> processNextCommand False
+                    else sendErrors (runCommand state clientSend initialConfig cmd) >> processNextCommand False
 
     sendErrors :: GHC.Ghc () -> GHC.Ghc ()
     sendErrors action = GHC.gcatch action $ \e -> do
@@ -178,17 +180,37 @@ configSession state clientSend config = do
     handleGhcError :: GHC.GhcException -> GHC.Ghc String
     handleGhcError e = return $ GHC.showGhcException e ""
 
-runCommand :: IORef State -> ClientSend -> Command -> GHC.Ghc ()
-runCommand _ clientSend (CmdCheck file) = do
+loadTarget :: [FilePath] -> Config -> GHC.Ghc (Maybe GHC.SuccessFlag)
+loadTarget files conf = do
     let noPhase = Nothing
-    target <- GHC.guessTarget file noPhase
-    GHC.setTargets [target]
-    let handler err = GHC.printException err >> return GHC.Failed
-    flag <- GHC.handleSourceError handler (GHC.load GHC.LoadAllTargets)
-    liftIO $ case flag of
-        GHC.Succeeded -> clientSend (ClientExit ExitSuccess)
-        GHC.Failed -> clientSend (ClientExit (ExitFailure 1))
-runCommand _ clientSend (CmdModuleFile moduleName) = do
+    targets <- mapM (flip GHC.guessTarget noPhase) files
+    GHC.setTargets targets
+    graph <- GHC.depanal [] True
+    if configTH conf || (not $ GHC.needsTemplateHaskell graph)
+        then do
+            when (GHC.needsTemplateHaskell graph) $ do
+                flags <- GHC.getSessionDynFlags
+                void . GHC.setSessionDynFlags $ flags { GHC.hscTarget = GHC.HscInterpreted, GHC.ghcLink = GHC.LinkInMemory }
+            let handler err = GHC.printException err >> return GHC.Failed
+            fmap Just $ GHC.handleSourceError handler (GHC.load GHC.LoadAllTargets)
+        else return Nothing
+
+withTargets :: ClientSend -> [FilePath] -> Config -> GHC.Ghc () -> GHC.Ghc ()
+withTargets clientSend files conf act = do
+    ret <- loadTarget files conf
+    case ret of
+        Nothing -> liftIO $ mapM_ clientSend [ClientStderr "Template haskell required but not activated", ClientExit (ExitFailure 1)]
+
+        Just GHC.Failed -> liftIO $ mapM_ clientSend [ClientStderr "Failed to load targets", ClientExit (ExitFailure 1)]
+
+        Just GHC.Succeeded -> act
+
+
+runCommand :: IORef State -> ClientSend -> Config -> Command -> GHC.Ghc ()
+runCommand _ clientSend conf (CmdCheck file) =
+    withTargets clientSend [file] conf
+        (liftIO . clientSend . ClientExit $ ExitSuccess)
+runCommand _ clientSend _ (CmdModuleFile moduleName) = do
     moduleGraph <- GHC.getModuleGraph
     case find (moduleSummaryMatchesModuleName moduleName) moduleGraph of
         Nothing ->
@@ -211,54 +233,69 @@ runCommand _ clientSend (CmdModuleFile moduleName) = do
     where
     moduleSummaryMatchesModuleName modName modSummary =
         modName == (GHC.moduleNameString . GHC.moduleName . GHC.ms_mod) modSummary
-runCommand state clientSend (CmdInfo file identifier) = do
-    result <- withWarnings state False $
-        getIdentifierInfo file identifier
-    case result of
-        Left err ->
-            liftIO $ mapM_ clientSend
-                [ ClientStderr err
-                , ClientExit (ExitFailure 1)
+runCommand state clientSend conf (CmdInfo file identifier) =
+    withTargets clientSend  [file] conf $ do
+        result <- withWarnings state False $
+            getIdentifierInfo file identifier
+        case result of
+            Left err ->
+                liftIO $ mapM_ clientSend
+                    [ ClientStderr err
+                    , ClientExit (ExitFailure 1)
+                    ]
+            Right info -> liftIO $ mapM_ clientSend
+                [ ClientStdout info
+                , ClientExit ExitSuccess
                 ]
-        Right info -> liftIO $ mapM_ clientSend
-            [ ClientStdout info
-            , ClientExit ExitSuccess
-            ]
-runCommand state clientSend (CmdType file (line, col)) = do
-    result <- withWarnings state False $
-        getType file (line, col)
-    case result of
-        Left err ->
-            liftIO $ mapM_ clientSend
-                [ ClientStderr err
-                , ClientExit (ExitFailure 1)
+runCommand state clientSend conf (CmdType file (line, col)) =
+    withTargets clientSend [file] conf $ do
+        result <- withWarnings state False $
+            getType file (line, col)
+        case result of
+            Left err ->
+                liftIO $ mapM_ clientSend
+                    [ ClientStderr err
+                    , ClientExit (ExitFailure 1)
+                    ]
+            Right types -> liftIO $ do
+                mapM_ (clientSend . ClientStdout . formatType) types
+                clientSend (ClientExit ExitSuccess)
+        where
+        formatType :: ((Int, Int, Int, Int), String) -> String
+        formatType ((startLine, startCol, endLine, endCol), t) =
+            concat
+                [ show startLine , " "
+                , show startCol , " "
+                , show endLine , " "
+                , show endCol , " "
+                , "\"", t, "\""
                 ]
-        Right types -> liftIO $ do
-            mapM_ (clientSend . ClientStdout . formatType) types
-            clientSend (ClientExit ExitSuccess)
-    where
-    formatType :: ((Int, Int, Int, Int), String) -> String
-    formatType ((startLine, startCol, endLine, endCol), t) =
-        concat
-            [ show startLine , " "
-            , show startCol , " "
-            , show endLine , " "
-            , show endCol , " "
-            , "\"", t, "\""
-            ]
-runCommand state clientSend (CmdFindSymbol symbol files) = do
-    result <- withWarnings state False $ findSymbol symbol files
-    case result of
-        []      -> liftIO $ mapM_ clientSend
-                       [ ClientStderr $ "Couldn't find modules containing '" ++ symbol ++ "'"
-                       , ClientExit (ExitFailure 1)
-                       ]
-        modules -> liftIO $ mapM_ clientSend
-                       [ ClientStdout (formatModules modules)
-                       , ClientExit ExitSuccess
-                       ]
-    where
-    formatModules = intercalate "\n"
+runCommand state clientSend conf (CmdFindSymbol symbol files) = do
+    -- for the findsymbol command GHC shouldn't output any warnings
+    -- or errors to stdout for the loaded source files, we're only
+    -- interested in the module graph of the loaded targets
+    dynFlags <- GHC.getSessionDynFlags
+    _        <- GHC.setSessionDynFlags dynFlags { GHC.log_action = \_ _ _ _ _ ->
+#if __GLASGOW_HASKELL__ >= 800
+                                                 return . return $ () }
+#else
+                                                 return () }
+#endif
+
+    ret <- withTargets clientSend files conf $ do
+        result <- withWarnings state False $ findSymbol symbol
+        case result of
+            []      -> liftIO $ mapM_ clientSend
+                        [ ClientStderr $ "Couldn't find modules containing '" ++ symbol ++ "'"
+                        , ClientExit (ExitFailure 1)
+                        ]
+            modules -> liftIO $ mapM_ clientSend
+                        [ ClientStdout (intercalate "\n" modules)
+                        , ClientExit ExitSuccess
+                        ]
+    -- reset the old log_action
+    _ <- GHC.setSessionDynFlags dynFlags
+    return ret
 
 
 
