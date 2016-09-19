@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.5.0 - UNRELEASED
+
+ * (Re-)added template haskell support when required. Can be turned off using `--noTH`.
+
 ## 0.1.4.1 - 2016-09-04
 
  * Do not try to execute `stack` commands if not available.
