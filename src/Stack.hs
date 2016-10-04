@@ -52,7 +52,11 @@ getStackGhcBinDir :: FilePath -> IO (Maybe FilePath)
 getStackGhcBinDir = fmap (fmap trim) . execStackInPath "path --compiler-bin"
 
 getStackGhcLibDir :: FilePath -> IO (Maybe FilePath)
-getStackGhcLibDir = fmap (fmap takeDirectory) . execStackInPath "path --global-pkg-db"
+getStackGhcLibDir p = do
+    ghc <- (trim <$>) <$> execStackInPath "path --compiler-exe" p
+    case ghc of
+        Just exe -> (trim <$>) <$> execInPath (exe ++ " --print-libdir") p
+        Nothing -> return Nothing
 
 getStackDist :: FilePath -> IO (Maybe FilePath)
 getStackDist p = (trim <$>) <$> execStackInPath "path --dist-dir" p
