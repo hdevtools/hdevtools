@@ -1,8 +1,9 @@
 # Changelog
 
-## 0.1.5.0 - UNRELEASED
+## 0.1.5.0 - 2016-12-23
 
  * (Re-)added template haskell support when required. Can be turned off using `--noTH`.
+ * Fixed system installed GHC libdir paths using stack.
 
 ## 0.1.4.1 - 2016-09-04
 
