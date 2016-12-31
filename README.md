@@ -41,7 +41,7 @@ editor plugins that supply this integration is below.
 But before you do anything, you must first install `hdevtools` itself. The
 easiest way is from [Stackage][14] using [stack][15]:
 ```
-$ stack install hdevtools
+$ stack --resolver lts-7.0 install hdevtools
 ```
 
 **Note:** `hdevtools` automatically discovers compiler and libraries installed
