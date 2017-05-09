@@ -161,7 +161,7 @@ configSession state clientSend config = do
     case eCabalGhcOpts of
       Left e -> return $ Left e
       Right cabalGhcOpts -> do
-          let allGhcOpts = cabalGhcOpts ++ configGhcOpts config
+          let allGhcOpts = configGhcOpts config ++ cabalGhcOpts
           GHC.gcatch (Right <$> updateDynFlags allGhcOpts)
                      (fmap Left . handleGhcError)
   where
