@@ -3,15 +3,19 @@
 module CommandArgs
     ( HDevTools(..)
     , loadHDevTools
+    , pathArg
     )
 where
 
+import Cabal (findFile)
 import Data.Version (showVersion)
 import Paths_hdevtools (version)
-import System.Console.CmdArgs.Implicit
-import System.Environment (getProgName)
-import System.Info (arch, os)
 import qualified Config
+import System.Console.CmdArgs.Implicit
+import System.Directory (getCurrentDirectory)
+import System.Environment (getProgName, withArgs, getArgs)
+import System.FilePath (takeDirectory)
+import System.Info (arch, os)
 
 programVersion :: String
 programVersion =
@@ -41,6 +45,7 @@ data HDevTools
         , status       :: Bool
         , stop_server  :: Bool
         , debug :: Bool
+        , noStack :: Bool
         }
     | Check
         { socket  :: Maybe FilePath
@@ -50,6 +55,7 @@ data HDevTools
         , file    :: String
         , json    :: Bool
         , debug :: Bool
+        , noStack :: Bool
         , noTH :: Bool
         }
     | ModuleFile
@@ -58,6 +64,7 @@ data HDevTools
         , cabalOpts :: [String]
         , module_ :: String
         , debug :: Bool
+        , noStack :: Bool
         }
     | Info
         { socket     :: Maybe FilePath
@@ -67,6 +74,7 @@ data HDevTools
         , file       :: String
         , identifier :: String
         , debug :: Bool
+        , noStack :: Bool
         , noTH :: Bool
         }
     | Type
@@ -78,6 +86,7 @@ data HDevTools
         , line    :: Int
         , col     :: Int
         , debug :: Bool
+        , noStack :: Bool
         , noTH :: Bool
         }
     | FindSymbol
@@ -87,6 +96,7 @@ data HDevTools
         , symbol :: String
         , files :: [String]
         , debug :: Bool
+        , noStack :: Bool
         , noTH :: Bool
         }
     deriving (Show, Data, Typeable)
@@ -101,6 +111,7 @@ dummyAdmin = Admin
     , status       = False
     , stop_server  = False
     , debug = False
+    , noStack = False
     }
 
 dummyCheck :: HDevTools
@@ -113,6 +124,7 @@ dummyCheck = Check
     , json    = False
     , debug = False
     , noTH = False
+    , noStack = False
     }
 
 dummyModuleFile :: HDevTools
@@ -122,6 +134,7 @@ dummyModuleFile = ModuleFile
     , cabalOpts = []
     , module_ = ""
     , debug = False
+    , noStack = False
     }
 
 dummyInfo :: HDevTools
@@ -133,6 +146,7 @@ dummyInfo = Info
     , file       = ""
     , identifier = ""
     , debug = False
+    , noStack = False
     , noTH = False
     }
 
@@ -146,6 +160,7 @@ dummyType = Type
     , line    = 0
     , col     = 0
     , debug = False
+    , noStack = False
     , noTH = False
     }
 
@@ -157,6 +172,7 @@ dummyFindSymbol = FindSymbol
     , symbol = ""
     , files = []
     , debug = False
+    , noStack = False
     , noTH = False
     }
 
@@ -170,6 +186,7 @@ admin = record dummyAdmin
     , status       := def            += help "show status of server"
     , stop_server  := def            += help "shutdown the server"
     , debug    := def                 += help "enable debug output"
+    , noStack      := def            += help "disable stack integration"
     ] += help "Interactions with the server"
 
 check :: Annotate Ann
@@ -181,6 +198,7 @@ check = record dummyCheck
     , file     := def += typFile      += argPos 0 += opt ""
     , json     := def                 += help "render output as JSON"
     , debug    := def                 += help "enable debug output"
+    , noStack  := def                 += help "disable stack integration"
     , noTH     := def                 += help "disable template haskell"
     ] += help "Check a haskell source file for errors and warnings"
 
@@ -191,6 +209,7 @@ moduleFile = record dummyModuleFile
     , cabalOpts := def += typ "OPTION"  += help "cabal options"
     , module_  := def += typ "MODULE" += argPos 0
     , debug    := def                 += help "enable debug output"
+    , noStack      := def            += help "disable stack integration"
     ] += help "Get the haskell source file corresponding to a module name"
 
 info :: Annotate Ann
@@ -202,6 +221,7 @@ info = record dummyInfo
     , file       := def += typFile      += argPos 0 += opt ""
     , identifier := def += typ "IDENTIFIER" += argPos 1
     , debug      := def                 += help "enable debug output"
+    , noStack      := def            += help "disable stack integration"
     , noTH     := def                 += help "disable template haskell"
     ] += help "Get info from GHC about the specified identifier"
 
@@ -211,6 +231,7 @@ type_ = record dummyType
     , ghcOpts  := def += typ "OPTION" += help "ghc options"
     , cabalOpts := def += typ "OPTION"  += help "cabal options"
     , debug    := def                 += help "enable debug output"
+    , noStack      := def            += help "disable stack integration"
     , path     := def += typFile      += help "path to target file"
     , file     := def += typFile      += argPos 0 += opt ""
     , line     := def += typ "LINE"   += argPos 1
@@ -226,6 +247,7 @@ findSymbol = record dummyFindSymbol
     , symbol   := def += typ "SYMBOL" += argPos 0
     , files    := def += typFile += args
     , debug    := def                 += help "enable debug output"
+    , noStack  := def                   += help "disable stack integration"
     , noTH     := def                 += help "disable template haskell"
     ] += help "List the modules where the given symbol could be found"
 
@@ -236,7 +258,35 @@ full progName = modes_ [admin += auto, check, moduleFile, info, type_, findSymbo
         += program progName
         += summary (progName ++ ": " ++ fullVersion)
 
+
+fileArg :: HDevTools -> Maybe String
+fileArg (Admin {})      = Nothing
+fileArg (ModuleFile {}) = Nothing
+fileArg a@(Check {}) = Just $ file a
+fileArg a@(Info  {}) = Just $ file a
+fileArg a@(Type  {}) = Just $ file a
+fileArg (FindSymbol {}) = Nothing
+
+pathArg' :: HDevTools -> Maybe String
+pathArg' (Admin {})      = Nothing
+pathArg' (ModuleFile {}) = Nothing
+pathArg' a@(Check {}) = path a
+pathArg' a@(Info  {}) = path a
+pathArg' a@(Type  {}) = path a
+pathArg' (FindSymbol {}) = Nothing
+
+pathArg :: HDevTools -> Maybe String
+pathArg a = case pathArg' a of
+                Just x  -> Just x
+                Nothing -> fileArg a
+
+
 loadHDevTools :: IO HDevTools
 loadHDevTools = do
     progName <- getProgName
-    (cmdArgs_ (full progName) :: IO HDevTools)
+    cfg0 <- cmdArgs_ (full progName)
+    dir  <- maybe getCurrentDirectory (return . takeDirectory) $ pathArg cfg0
+    mConfig <- findFile (== ".hdevtoolsrc") dir
+    perProject <- maybe (return []) (\f -> words <$> readFile f) mConfig
+    args0 <- getArgs
+    withArgs (args0 ++ perProject) $ cmdArgs_ (full progName)

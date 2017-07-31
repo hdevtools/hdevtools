@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP #-}
 module Cabal
   ( getPackageGhcOpts
-  , findCabalFile
+  , findCabalFile, findFile
   ) where
 
 import Stack
@@ -256,20 +256,22 @@ getSandboxPackageDB sandboxPath = do
     extractValue = fst . break (`elem` "\n\r") . dropWhile isSpace . drop (length pkgDbKey)
 
 
-findCabalFile :: FilePath -> IO (Maybe FilePath)
-findCabalFile dir = do
+-- | looks for file matching a predicate starting from dir and going up until root
+findFile :: (FilePath -> Bool) -> FilePath -> IO (Maybe FilePath)
+findFile p dir = do
     allFiles <- getDirectoryContents dir
-    let mbCabalFile = find (isCabalFile) allFiles
-    case mbCabalFile of
+    case find p allFiles of
       Just cabalFile -> return $ Just $ dir </> cabalFile
       Nothing ->
         let parentDir = takeDirectory dir
          in if parentDir == dir
             then return Nothing
-            else findCabalFile parentDir
+            else findFile p parentDir
 
+
+findCabalFile :: FilePath -> IO (Maybe FilePath)
+findCabalFile = findFile isCabalFile
   where
-
     isCabalFile :: FilePath -> Bool
     isCabalFile path = ".cabal" `isSuffixOf` path
                     && length path > length ".cabal"

@@ -32,27 +32,6 @@ defaultSocketFile :: FilePath
 defaultSocketFile = ".hdevtools.sock"
 
 
-fileArg :: HDevTools -> Maybe String
-fileArg (Admin {})      = Nothing
-fileArg (ModuleFile {}) = Nothing
-fileArg args@(Check {}) = Just $ file args
-fileArg args@(Info  {}) = Just $ file args
-fileArg args@(Type  {}) = Just $ file args
-fileArg (FindSymbol {}) = Nothing
-
-pathArg' :: HDevTools -> Maybe String
-pathArg' (Admin {})      = Nothing
-pathArg' (ModuleFile {}) = Nothing
-pathArg' args@(Check {}) = path args
-pathArg' args@(Info  {}) = path args
-pathArg' args@(Type  {}) = path args
-pathArg' (FindSymbol {}) = Nothing
-
-pathArg :: HDevTools -> Maybe String
-pathArg args = case pathArg' args of
-                Just x  -> Just x
-                Nothing -> fileArg args
-
 main :: IO ()
 main = do
     args <- loadHDevTools
@@ -61,7 +40,7 @@ main = do
     mCabalFile <- findCabalFile dir >>= traverse absoluteFilePath
     when (debug args) .
       putStrLn $ "Cabal file: " <> show mCabalFile
-    mStackYaml <- findStackYaml dir
+    mStackYaml <- if noStack args then return Nothing else findStackYaml dir
     when (debug args) .
       putStrLn $ "Stack file: " <> show mStackYaml
     let extra = emptyCommandExtra
