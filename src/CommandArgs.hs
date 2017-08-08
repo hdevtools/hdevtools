@@ -209,7 +209,7 @@ moduleFile = record dummyModuleFile
     , cabalOpts := def += typ "OPTION"  += help "cabal options"
     , module_  := def += typ "MODULE" += argPos 0
     , debug    := def                 += help "enable debug output"
-    , noStack      := def            += help "disable stack integration"
+    , noStack  := def                 += help "disable stack integration"
     ] += help "Get the haskell source file corresponding to a module name"
 
 info :: Annotate Ann
@@ -221,7 +221,7 @@ info = record dummyInfo
     , file       := def += typFile      += argPos 0 += opt ""
     , identifier := def += typ "IDENTIFIER" += argPos 1
     , debug      := def                 += help "enable debug output"
-    , noStack      := def            += help "disable stack integration"
+    , noStack    := def                 += help "disable stack integration"
     , noTH     := def                 += help "disable template haskell"
     ] += help "Get info from GHC about the specified identifier"
 
@@ -231,7 +231,7 @@ type_ = record dummyType
     , ghcOpts  := def += typ "OPTION" += help "ghc options"
     , cabalOpts := def += typ "OPTION"  += help "cabal options"
     , debug    := def                 += help "enable debug output"
-    , noStack      := def            += help "disable stack integration"
+    , noStack  := def                 += help "disable stack integration"
     , path     := def += typFile      += help "path to target file"
     , file     := def += typFile      += argPos 0 += opt ""
     , line     := def += typ "LINE"   += argPos 1
@@ -247,7 +247,7 @@ findSymbol = record dummyFindSymbol
     , symbol   := def += typ "SYMBOL" += argPos 0
     , files    := def += typFile += args
     , debug    := def                 += help "enable debug output"
-    , noStack  := def                   += help "disable stack integration"
+    , noStack  := def                 += help "disable stack integration"
     , noTH     := def                 += help "disable template haskell"
     ] += help "List the modules where the given symbol could be found"
 
