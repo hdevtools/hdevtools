@@ -194,14 +194,34 @@ This won't work:
 
     $ hdevtools check -g '-hide-package transformers' Foo.hs
 
+In general, you will need to pass to `hdevtools` the same GHC options that you
+would pass to GHCi.
+
+For projects with custom build systems, you can prevent `hdevtools` from
+detecting a global `stack.yaml` configuration with the argument `--nostack`.
+
+#### Specifying GHC Options in Vim ####
+
 The Vim plugins allow setting GHC options in the `g:hdevtools_options`
 variable.  For example, for the above project, put the following in your
 `.vimrc`:
 
     let g:hdevtools_options = '-g -isrc -g -Wall -g -hide-package -g transformers'
 
-In general, you will need to pass to `hdevtools` the same GHC options that you
-would pass to GHCi.
+#### Specifying GHC Options with `.hdevtoolsrc` ####
+
+If an `.hdevtoolsrc` file is present, then `hdevtools` will
+parse arguments from the `.hdevtoolsrc` file after arguments from the command
+line.
+
+For example, for the above project, the `.hdevtoolsrc` file would contain:
+
+    -g -isrc -g -Wall -g -hide-package -g transformers
+
+The `.hdevtoolsrc` file will be searched for in the target path and all parents
+of the target path, or, if the `hdevtools` command has no target, in `$PWD` and
+all parents of `$PWD`.
+
 
 Credits
 -------

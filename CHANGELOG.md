@@ -1,5 +1,10 @@
 # Changelog
 
+## 2017
+
+ * `.hdevtoolsrc` file for project-specific configuration.
+ * Use of `stack` can be turned of with `--nostack`
+
 ## 0.1.5.0 - 2016-12-23
 
  * (Re-)added template haskell support when required. Can be turned off using `--noTH`.
