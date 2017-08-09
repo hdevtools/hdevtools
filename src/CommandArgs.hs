@@ -287,6 +287,6 @@ loadHDevTools = do
     cfg0 <- cmdArgs_ (full progName)
     dir  <- maybe getCurrentDirectory (return . takeDirectory) $ pathArg cfg0
     mConfig <- findFile (== ".hdevtoolsrc") dir
-    perProject <- maybe (return []) (\f -> words <$> readFile f) mConfig
+    perProject <- maybe (return []) (\f -> words `fmap` readFile f) mConfig
     args0 <- getArgs
     withArgs (args0 ++ perProject) $ cmdArgs_ (full progName)
