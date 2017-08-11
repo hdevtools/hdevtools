@@ -12,6 +12,7 @@ import Data.Version (showVersion)
 import Paths_hdevtools (version)
 import qualified Config
 import System.Console.CmdArgs.Implicit
+import System.Console.CmdArgs.Explicit (splitArgs)
 import System.Directory (getCurrentDirectory)
 import System.Environment (getProgName, withArgs, getArgs)
 import System.FilePath (takeDirectory)
@@ -287,6 +288,6 @@ loadHDevTools = do
     cfg0 <- cmdArgs_ (full progName)
     dir  <- maybe getCurrentDirectory (return . takeDirectory) $ pathArg cfg0
     mConfig <- findFile (== ".hdevtoolsrc") dir
-    perProject <- maybe (return []) (\f -> words `fmap` readFile f) mConfig
+    perProject <- maybe (return []) (\f -> splitArgs `fmap` readFile f) mConfig
     args0 <- getArgs
     withArgs (args0 ++ perProject) $ cmdArgs_ (full progName)
