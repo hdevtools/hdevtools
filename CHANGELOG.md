@@ -1,13 +1,13 @@
 # Changelog
 
-## 2017
+## 0.1.6.0 - UNRELEASED
 
  * `.hdevtoolsrc` file for project-specific configuration.
- * Use of `stack` can be turned of with `--nostack`
+ * Use of `stack` can be turned off with `--nostack`.
 
 ## 0.1.5.0 - 2016-12-23
 
- * (Re-)added template haskell support when required. Can be turned off using `--noTH`.
+ * (Re-)added template haskell support when required. Can be turned off using `--noth`.
  * Fixed system installed GHC libdir paths using stack.
 
 ## 0.1.4.1 - 2016-09-04
