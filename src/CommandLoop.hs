@@ -217,8 +217,7 @@ loadTarget files conf = do
             when (GHC.needsTemplateHaskell graph) $ do
                 flags <- GHC.getSessionDynFlags
                 void . GHC.setSessionDynFlags $ flags { GHC.hscTarget = GHC.HscInterpreted, GHC.ghcLink = GHC.LinkInMemory }
-            let handler err = GHC.printException err >> return GHC.Failed
-            fmap Just $ GHC.handleSourceError handler (GHC.load GHC.LoadAllTargets)
+            Just <$> GHC.load GHC.LoadAllTargets
         else return Nothing
 
 withTargets :: ClientSend -> [FilePath] -> Config -> GHC.Ghc () -> GHC.Ghc ()
