@@ -185,15 +185,16 @@ loadTarget files conf = do
     let noPhase = Nothing
     targets <- mapM (flip GHC.guessTarget noPhase) files
     GHC.setTargets targets
-    graph <- GHC.depanal [] True
-    if configTH conf || (not $ GHC.needsTemplateHaskell graph)
-        then do
+    let handler err = GHC.printException err >> return (Just GHC.Failed)
+    GHC.handleSourceError handler $ do
+        graph <- GHC.depanal [] True
+        if configTH conf || (not $ GHC.needsTemplateHaskell graph)
+            then do
             when (GHC.needsTemplateHaskell graph) $ do
                 flags <- GHC.getSessionDynFlags
                 void . GHC.setSessionDynFlags $ flags { GHC.hscTarget = GHC.HscInterpreted, GHC.ghcLink = GHC.LinkInMemory }
-            let handler err = GHC.printException err >> return GHC.Failed
-            fmap Just $ GHC.handleSourceError handler (GHC.load GHC.LoadAllTargets)
-        else return Nothing
+            Just <$> GHC.load GHC.LoadAllTargets
+            else return Nothing
 
 withTargets :: ClientSend -> [FilePath] -> Config -> GHC.Ghc () -> GHC.Ghc ()
 withTargets clientSend files conf act = do
