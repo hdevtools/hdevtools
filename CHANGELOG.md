@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.6.1 - UNRELEASED
+
+ * Fixed build with ghc-8.2.0.
+
 ## 0.1.6.0 - 2017-08-21
 
  * Added handling of source errors: GHC `SourceError` and other exceptions are
