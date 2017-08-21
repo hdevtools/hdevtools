@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, ViewPatterns #-}
+
 module CommandLoop
     ( newCommandLoopState
     , Config(..)
@@ -7,6 +8,7 @@ module CommandLoop
     , startCommandLoop
     ) where
 
+import Control.Exception
 import Control.Applicative ((<|>))
 import Control.Monad (when, void)
 import Data.IORef
@@ -25,6 +27,8 @@ import qualified Exception (ExceptionMonad)
 import qualified DynFlags
 #endif
 import qualified GHC
+import qualified GhcPlugins as GHC
+import qualified ErrUtils as GHC
 import qualified GHC.Paths
 import qualified Outputable
 import System.Posix.Types (EpochTime)
@@ -136,15 +140,37 @@ startCommandLoop state clientSend getNextCommand initialConfig mbInitialCommand 
             Just (cmd, config) ->
                 if forceReconfig || (config /= initialConfig)
                     then return (Just (cmd, config))
-                    else sendErrors (runCommand state clientSend initialConfig cmd) >> processNextCommand False
+                    else do
+                        sendErrors (runCommand state clientSend initialConfig cmd)
+                        processNextCommand False
 
     sendErrors :: GHC.Ghc () -> GHC.Ghc ()
-    sendErrors action = GHC.gcatch action $ \e -> do
-        liftIO $ mapM_ clientSend
-            [ ClientStderr $ GHC.showGhcException e ""
-            , ClientExit (ExitFailure 1)
-            ]
-        return ()
+    sendErrors action = do
+            action `GHC.gcatch` ghcError
+                   `GHC.gcatch` sourceError
+                   `GHC.gcatch` unknownError
+        where
+            ghcError :: GHC.GhcException -> GHC.Ghc ()
+            ghcError = die . flip GHC.showGhcException ""
+
+            unknownError :: SomeException -> GHC.Ghc ()
+            unknownError = die . show
+
+            sourceError :: GHC.SourceError -> GHC.Ghc ()
+            sourceError = report
+
+            die msg = liftIO $ mapM_ clientSend
+                [ ClientStderr msg
+                , ClientExit (ExitFailure 1)
+                ]
+
+            report (GHC.srcErrorMessages -> bag) = do
+                flags <- GHC.getSessionDynFlags
+                let msgs = map (Outputable.showSDoc flags) $ GHC.pprErrMsgBagWithLoc bag
+                liftIO $ do
+                    mapM_ (logActionSend state clientSend GHC.SevError) msgs
+                    clientSend $ ClientExit ExitSuccess
+
 
 doMaybe :: Monad m => Maybe a -> (a -> m ()) -> m ()
 doMaybe Nothing _ = return ()
@@ -191,8 +217,7 @@ loadTarget files conf = do
             when (GHC.needsTemplateHaskell graph) $ do
                 flags <- GHC.getSessionDynFlags
                 void . GHC.setSessionDynFlags $ flags { GHC.hscTarget = GHC.HscInterpreted, GHC.ghcLink = GHC.LinkInMemory }
-            let handler err = GHC.printException err >> return GHC.Failed
-            fmap Just $ GHC.handleSourceError handler (GHC.load GHC.LoadAllTargets)
+            Just <$> GHC.load GHC.LoadAllTargets
         else return Nothing
 
 withTargets :: ClientSend -> [FilePath] -> Config -> GHC.Ghc () -> GHC.Ghc ()
