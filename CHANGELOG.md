@@ -2,6 +2,10 @@
 
 ## 0.1.6.0 - UNRELEASED
 
+ * Added handling of source errors: GHC `SourceError` and other exceptions are
+   now correctly sent to the frontend process. This enables `hdevtools` to
+   correctly report haskell syntax errors and improves visibility of exceptions
+   leading the backend process to die.
  * `.hdevtoolsrc` file for project-specific configuration.
  * Use of `stack` can be turned off with `--nostack`.
 
