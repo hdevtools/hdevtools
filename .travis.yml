@@ -53,27 +53,27 @@ matrix:
     addons: {apt: {packages: [libgmp-dev]}}
 
   - env: BUILD=stack ARGS="--resolver lts-2"
-    compiler: ": #stack 7.8.4"
+    compiler: ": #stack lts-2 ghc-7.8.4"
     addons: {apt: {packages: [libgmp-dev]}}
 
   - env: BUILD=stack ARGS="--resolver lts-3"
-    compiler: ": #stack 7.10.2"
+    compiler: ": #stack lts-3 ghc-7.10.2"
     addons: {apt: {packages: [libgmp-dev]}}
 
   - env: BUILD=stack ARGS="--resolver lts-5"
-    compiler: ": #stack 7.10.3"
+    compiler: ": #stack lts-5 ghc-7.10.3"
     addons: {apt: {packages: [libgmp-dev]}}
 
   - env: BUILD=stack ARGS="--resolver lts-7"
-    compiler: ": #stack 8.0.1"
+    compiler: ": #stack lts-7 ghc-8.0.1"
     addons: {apt: {packages: [libgmp-dev]}}
 
   - env: BUILD=stack ARGS="--resolver lts-8"
-    compiler: ": #stack 8.0.2"
+    compiler: ": #stack lts-8 ghc-8.0.2"
     addons: {apt: {packages: [libgmp-dev]}}
 
   - env: BUILD=stack ARGS="--resolver lts-9"
-    compiler: ": #stack 8.0.2-nopie"
+    compiler: ": #stack lts-9 ghc-8.0.2"
     addons: {apt: {packages: [libgmp-dev]}}
 
   # Nightly builds are allowed to fail
@@ -87,27 +87,27 @@ matrix:
     os: osx
 
   - env: BUILD=stack ARGS="--resolver lts-2"
-    compiler: ": #stack 7.8.4 osx"
+    compiler: ": #stack lts-2 ghc-7.8.4 osx"
     os: osx
 
   - env: BUILD=stack ARGS="--resolver lts-3"
-    compiler: ": #stack 7.10.2 osx"
+    compiler: ": #stack lts-3 ghc-7.10.2 osx"
     os: osx
 
   - env: BUILD=stack ARGS="--resolver lts-5"
-    compiler: ": #stack 7.10.3 osx"
+    compiler: ": #stack lts-5 ghc-7.10.3 osx"
     os: osx
 
   - env: BUILD=stack ARGS="--resolver lts-7"
-    compiler: ": #stack 8.0.1 osx"
+    compiler: ": #stack lts-7 8.0.1 osx"
     os: osx
 
   - env: BUILD=stack ARGS="--resolver lts-8"
-    compiler: ": #stack 8.0.2 osx"
+    compiler: ": #stack lts-8 8.0.2 osx"
     os: osx
 
   - env: BUILD=stack ARGS="--resolver lts-9"
-    compiler: ": #stack 8.0.2-nopie osx"
+    compiler: ": #stack lts-9 8.0.2.2 osx"
     os: osx
 
   - env: BUILD=stack ARGS="--resolver nightly"
