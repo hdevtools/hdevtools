@@ -86,10 +86,6 @@ matrix:
     compiler: ": #stack default osx"
     os: osx
 
-  - env: BUILD=stack ARGS="--resolver lts-2"
-    compiler: ": #stack lts-2 ghc-7.8.4 osx"
-    os: osx
-
   - env: BUILD=stack ARGS="--resolver lts-3"
     compiler: ": #stack lts-3 ghc-7.10.2 osx"
     os: osx
