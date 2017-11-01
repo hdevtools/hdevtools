@@ -15,16 +15,13 @@ import Data.List (foldl', nub, sort, find, isPrefixOf, isSuffixOf)
 import Control.Applicative ((<$>))
 import Data.Monoid (Monoid(..))
 #endif
+#if __GLASGOW_HASKELL__ < 802
 import Distribution.Package (PackageIdentifier(..), PackageName)
+#endif
 import Distribution.PackageDescription (PackageDescription(..), Executable(..), TestSuite(..), Benchmark(..), emptyHookedBuildInfo, buildable, libBuildInfo)
 import Distribution.PackageDescription.Parse (readPackageDescription)
 import Distribution.Simple.Configure (configure)
-import Distribution.Simple.LocalBuildInfo (LocalBuildInfo(..), ComponentLocalBuildInfo(..),
-    Component(..), ComponentName(..),
-#if !MIN_VERSION_Cabal(1,18,0)
-    allComponentsBy,
-#endif
-    componentBuildInfo, foldComponent)
+import Distribution.Simple.LocalBuildInfo (LocalBuildInfo(..), Component(..), componentName, getComponentLocalBuildInfo, componentBuildInfo)
 import Distribution.Simple.Compiler (PackageDB(..))
 import Distribution.Simple.Command (CommandParse(..), commandParseArgs)
 import Distribution.Simple.GHC (componentGhcOptions)
@@ -38,46 +35,12 @@ import Distribution.Utils.NubList
 #endif
 import qualified Distribution.Simple.GHC as GHC(configure)
 import Distribution.Verbosity (silent)
-import Distribution.Version (Version(..))
+import Distribution.Version
 
 import System.IO.Error (ioeGetErrorString)
 import System.Directory (doesFileExist, doesDirectoryExist, getDirectoryContents)
 import System.FilePath (takeDirectory, splitFileName, (</>))
 
-
-componentName :: Component -> ComponentName
-componentName =
-    foldComponent (const CLibName)
-                  (CExeName . exeName)
-                  (CTestName . testName)
-                  (CBenchName . benchmarkName)
-
-getComponentLocalBuildInfo :: LocalBuildInfo -> ComponentName -> ComponentLocalBuildInfo
-#if MIN_VERSION_Cabal(1,18,0)
-getComponentLocalBuildInfo lbi cname = getLocalBuildInfo cname $ componentsConfigs lbi
-    where getLocalBuildInfo cname' ((cname'', clbi, _):cfgs) =
-            if cname' == cname'' then clbi else getLocalBuildInfo cname' cfgs
-          getLocalBuildInfo _ [] = error $ "internal error: missing config"
-#else
-getComponentLocalBuildInfo lbi CLibName =
-    case libraryConfig lbi of
-        Nothing -> error $ "internal error: missing library config"
-        Just clbi -> clbi
-getComponentLocalBuildInfo lbi (CExeName name) =
-    case lookup name (executableConfigs lbi) of
-        Nothing -> error $ "internal error: missing config for executable " ++ name
-        Just clbi -> clbi
-getComponentLocalBuildInfo lbi (CTestName name) =
-    case lookup name (testSuiteConfigs lbi) of
-        Nothing -> error $ "internal error: missing config for test suite " ++ name
-        Just clbi -> clbi
-getComponentLocalBuildInfo lbi (CBenchName name) =
-    case lookup name (testSuiteConfigs lbi) of
-        Nothing -> error $ "internal error: missing config for benchmark " ++ name
-        Just clbi -> clbi
-#endif
-
-#if MIN_VERSION_Cabal(1,18,0)
 -- TODO: Fix callsites so we don't need `allComponentsBy`. It was taken from
 -- http://hackage.haskell.org/package/Cabal-1.16.0.3/docs/src/Distribution-Simple-LocalBuildInfo.html#allComponentsBy
 -- since it doesn't exist in Cabal 1.18.*
@@ -93,12 +56,9 @@ allComponentsBy pkg_descr f =
  ++ [ f (CExe  exe) | exe <- executables pkg_descr
                     , buildable (buildInfo exe) ]
  ++ [ f (CTest tst) | tst <- testSuites pkg_descr
-                    , buildable (testBuildInfo tst)
-                    , testEnabled tst ]
+                    , buildable (testBuildInfo tst)]
  ++ [ f (CBench bm) | bm <- benchmarks pkg_descr
-                    , buildable (benchmarkBuildInfo bm)
-                    , benchmarkEnabled bm ]
-#endif
+                    , buildable (benchmarkBuildInfo bm)]
 
 stackifyFlags :: ConfigFlags -> Maybe StackConfig -> ConfigFlags
 stackifyFlags cfg Nothing   = cfg
@@ -124,9 +84,10 @@ getPackageGhcOpts path mbStack opts = do
   where
     getPackageGhcOpts' :: IO (Either String [String])
     getPackageGhcOpts' = do
+      -- TODO(SN): readPackageDescription is deprecated
         genPkgDescr <- readPackageDescription silent path
         distDir     <- getDistDir
-
+      -- TODO(SN): defaultProgramConfiguration is deprecated
         let programCfg = defaultProgramConfiguration
         let initCfgFlags = (defaultConfigFlags programCfg)
                              { configDistPref = toFlag distDir
@@ -156,12 +117,14 @@ getPackageGhcOpts path mbStack opts = do
             _ -> return ()
 
         localBuildInfo <- configure (genPkgDescr, emptyHookedBuildInfo) cfgFlags
-        let pkgDescr = localPkgDescr localBuildInfo
         let baseDir = fst . splitFileName $ path
         case getGhcVersion localBuildInfo  of
             Nothing -> return $ Left "GHC is not configured"
             Just ghcVersion  -> do
+#if __GLASGOW_HASKELL__ < 802
+                let pkgDescr = localPkgDescr localBuildInfo
                 let mbLibName = pkgLibName pkgDescr
+#endif
                 let ghcOpts' = foldl' mappend mempty . map (getComponentGhcOptions localBuildInfo) .
                                flip allComponentsBy (\c -> c) . localPkgDescr $ localBuildInfo
                     -- FIX bug in GhcOptions' `mappend`
@@ -173,7 +136,9 @@ getPackageGhcOpts path mbStack opts = do
 #if __GLASGOW_HASKELL__ >= 709
                                        , ghcOptPackageDBs = sort $ nub (ghcOptPackageDBs ghcOpts')
 #endif
+#if __GLASGOW_HASKELL__ < 802
                                        , ghcOptPackages = overNubListR (filter (\(_, pkgId, _) -> Just (pkgName pkgId) /= mbLibName)) $ (ghcOptPackages ghcOpts')
+#endif
                                        , ghcOptSourcePath = overNubListR (map (baseDir </>)) (ghcOptSourcePath ghcOpts')
                                        }
 #else
@@ -184,23 +149,10 @@ getPackageGhcOpts path mbStack opts = do
                                        }
 #endif
 
-#if MIN_VERSION_Cabal(1,18,0)
--- API Change:
--- Distribution.Simple.GHC.configure now returns (Compiler, Maybe Platform, ProgramConfiguration) 
--- It used to just return (Compiler, ProgramConfiguration)
--- GHC.configure :: Verbosity -> Maybe FilePath -> Maybe FilePath -> ProgramConfiguration
---               -> IO (Compiler, Maybe Platform, ProgramConfiguration)
+                -- TODO(SN): defaultProgramConfiguration is deprecated
                 (ghcInfo, mbPlatform, _) <- GHC.configure silent Nothing Nothing defaultProgramConfiguration
-#else
--- configure :: Verbosity -> Maybe FilePath -> Maybe FilePath -> ProgramConfiguration
---           -> IO (Compiler, ProgramConfiguration)
-                (ghcInfo, _) <- GHC.configure silent Nothing Nothing defaultProgramConfiguration
-                -- let mbPlatform = Just (hostPlatform localBuildInfo) :: Maybe Platform
-#endif
                 putStrLn $ "Configured GHC " ++ show ghcVersion
-#if MIN_VERSION_Cabal(1,18,0)
                                              ++ " " ++ show mbPlatform
-#endif
 #if MIN_VERSION_Cabal(1,23,2)
 -- API Change:
 -- Distribution.Simple.Program.GHC.renderGhcOptions now takes Platform argument
@@ -226,10 +178,12 @@ getPackageGhcOpts path mbStack opts = do
             contents <- getDirectoryContents dir
             return . maybe dir (dir </>) $ find ("dist-sandbox-" `isPrefixOf`) contents
 
+#if __GLASGOW_HASKELL__ < 802
 pkgLibName :: PackageDescription -> Maybe PackageName
 pkgLibName pkgDescr = if hasLibrary pkgDescr
                       then Just $ pkgName . package $ pkgDescr
                       else Nothing
+#endif
 
 hasLibrary :: PackageDescription -> Bool
 hasLibrary = maybe False (\_ -> True) . library
@@ -239,6 +193,7 @@ getComponentGhcOptions lbi comp =
     componentGhcOptions silent lbi bi clbi (buildDir lbi)
 
   where bi   = componentBuildInfo comp
+        -- TODO(SN): getComponentLocalBuildInfo is deprecated as of Cabal-2.0.0.2
         clbi = getComponentLocalBuildInfo lbi (componentName comp)
 
 getGhcVersion :: LocalBuildInfo -> Maybe Version
