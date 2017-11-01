@@ -255,7 +255,7 @@ findSymbol = record dummyFindSymbol
 full :: String -> Annotate Ann
 full progName = modes_ [admin += auto, check, moduleFile, info, type_, findSymbol]
         += helpArg [name "h", groupname "Help"]
-        += versionArg [groupname "Help"]
+        += versionArg [name "v", groupname "Help"]
         += program progName
         += summary (progName ++ ": " ++ fullVersion)
 
