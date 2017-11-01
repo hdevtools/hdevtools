@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.6.1 - UNRELEASED
+
+ * Fix `moduleinfo` command to load targets correctly.
+
 ## 0.1.6.0 - 2017-08-21
 
  * Added handling of source errors: GHC `SourceError` and other exceptions are

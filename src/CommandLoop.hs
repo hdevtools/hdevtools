@@ -230,34 +230,35 @@ withTargets clientSend files conf act = do
 
         Just GHC.Succeeded -> act
 
-
 runCommand :: IORef State -> ClientSend -> Config -> Command -> GHC.Ghc ()
 runCommand _ clientSend conf (CmdCheck file) =
     withTargets clientSend [file] conf
         (liftIO . clientSend . ClientExit $ ExitSuccess)
 runCommand _ clientSend _ (CmdModuleFile moduleName) = do
-    moduleGraph <- GHC.getModuleGraph
-    case find (moduleSummaryMatchesModuleName moduleName) moduleGraph of
-        Nothing ->
-            liftIO $ mapM_ clientSend
-                [ ClientStderr "Module not found"
-                , ClientExit (ExitFailure 1)
-                ]
-        Just modSummary ->
+    target <- GHC.guessTarget moduleName Nothing
+    GHC.setTargets [target]
+    res <- GHC.load GHC.LoadAllTargets
+    case res of
+      GHC.Failed -> liftIO $ mapM_ clientSend [ ClientStderr "Error loading targets"
+                                              , ClientExit (ExitFailure 1)
+                                              ]
+      GHC.Succeeded -> do
+        moduleGraph <- GHC.getModuleGraph
+        case find (moduleSummaryMatchesModuleName moduleName) moduleGraph of
+          Nothing -> liftIO $ mapM_ clientSend [ ClientStderr "Module not found"
+                                               , ClientExit (ExitFailure 1)
+                                               ]
+          Just modSummary ->
             case GHC.ml_hs_file (GHC.ms_location modSummary) of
-                Nothing ->
-                    liftIO $ mapM_ clientSend
-                        [ ClientStderr "Module does not have a source file"
-                        , ClientExit (ExitFailure 1)
-                        ]
-                Just file ->
-                    liftIO $ mapM_ clientSend
-                        [ ClientStdout file
-                        , ClientExit ExitSuccess
-                        ]
-    where
+              Nothing -> liftIO $ mapM_ clientSend [ ClientStderr "Module does not have a source file"
+                                                   , ClientExit (ExitFailure 1)
+                                                   ]
+              Just file -> liftIO $ mapM_ clientSend [ ClientStdout file
+                                                     , ClientExit ExitSuccess
+                                                     ]
+  where
     moduleSummaryMatchesModuleName modName modSummary =
-        modName == (GHC.moduleNameString . GHC.moduleName . GHC.ms_mod) modSummary
+      modName == (GHC.moduleNameString . GHC.moduleName . GHC.ms_mod) modSummary
 runCommand state clientSend conf (CmdInfo file identifier) =
     withTargets clientSend  [file] conf $ do
         result <- withWarnings state False $

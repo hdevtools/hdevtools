@@ -27,10 +27,8 @@ absoluteFilePath p = if isAbsolute p then return p else do
     dir <- getCurrentDirectory
     return $ dir </> p
 
-
 defaultSocketFile :: FilePath
 defaultSocketFile = ".hdevtools.sock"
-
 
 main :: IO ()
 main = do
