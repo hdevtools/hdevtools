@@ -57,7 +57,6 @@ executable hdevtools
                        Daemonize,
                        FindSymbol,
                        Info,
-                       Main,
                        Server,
                        Stack,
                        Types,
@@ -90,3 +89,5 @@ executable hdevtools
   if impl(ghc >= 8.0)
     build-depends:     Cabal >= 1.24,
                        ghc-boot >= 8.0
+  if impl(ghc >= 8.2)
+    build-depends:     ghc-boot >= 8.2
