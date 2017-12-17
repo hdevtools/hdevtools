@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.6.1 - UNRELEASED
+## 0.1.6.1 - 2017-12-17
 
  * Fixed `moduleinfo` command to load targets correctly.
  * Print version on `-v` command line option.
