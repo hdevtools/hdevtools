@@ -2,6 +2,8 @@
 
 ## 0.1.6.1 - UNRELEASED
 
+ * Fixed `moduleinfo` command to load targets correctly.
+ * Print version on `-v` command line option.
  * Fixed build with ghc-8.2.0.
 
 ## 0.1.6.0 - 2017-08-21
