@@ -29,7 +29,7 @@ import Distribution.Simple.Program (defaultProgramConfiguration)
 import Distribution.Simple.Program.Db (lookupProgram)
 import Distribution.Simple.Program.Types (ConfiguredProgram(programVersion), simpleProgram)
 import Distribution.Simple.Program.GHC (GhcOptions(..), renderGhcOptions)
-import Distribution.Simple.Setup (ConfigFlags(..), defaultConfigFlags, configureCommand, toFlag)
+import Distribution.Simple.Setup (ConfigFlags(..), defaultConfigFlags, configureCommand, toFlag, flagToMaybe)
 #if MIN_VERSION_Cabal(1,21,1)
 import Distribution.Utils.NubList
 #endif
@@ -148,9 +148,10 @@ getPackageGhcOpts path mbStack opts = do
                                        , ghcOptSourcePath = map (baseDir </>) (ghcOptSourcePath ghcOpts')
                                        }
 #endif
-
+                let hcPath = flagToMaybe . configHcPath $ configFlags localBuildInfo
+                let pkgPath = flagToMaybe . configHcPkg $ configFlags localBuildInfo
                 -- TODO(SN): defaultProgramConfiguration is deprecated
-                (ghcInfo, mbPlatform, _) <- GHC.configure silent Nothing Nothing defaultProgramConfiguration
+                (ghcInfo, mbPlatform, _) <- GHC.configure silent hcPath pkgPath defaultProgramConfiguration
                 putStrLn $ "Configured GHC " ++ show ghcVersion
                                              ++ " " ++ show mbPlatform
 #if MIN_VERSION_Cabal(1,23,2)
