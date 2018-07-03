@@ -19,7 +19,12 @@ import Data.Monoid (Monoid(..))
 import Distribution.Package (PackageIdentifier(..), PackageName)
 #endif
 import Distribution.PackageDescription (PackageDescription(..), Executable(..), TestSuite(..), Benchmark(..), emptyHookedBuildInfo, buildable, libBuildInfo)
-import Distribution.PackageDescription.Parse (readPackageDescription)
+import qualified Distribution.PackageDescription as Distribution
+#if MIN_VERSION_Cabal(2, 2, 0)
+import qualified Distribution.PackageDescription.Parsec as Distribution
+#else
+import qualified Distribution.PackageDescription.Parse as Distribution
+#endif
 import Distribution.Simple.Configure (configure)
 import Distribution.Simple.LocalBuildInfo (LocalBuildInfo(..), Component(..), componentName, getComponentLocalBuildInfo, componentBuildInfo)
 import Distribution.Simple.Compiler (PackageDB(..))
@@ -35,11 +40,19 @@ import Distribution.Utils.NubList
 #endif
 import qualified Distribution.Simple.GHC as GHC(configure)
 import Distribution.Verbosity (silent)
+import qualified Distribution.Verbosity as Distribution
 import Distribution.Version
 
 import System.IO.Error (ioeGetErrorString)
 import System.Directory (doesFileExist, doesDirectoryExist, getDirectoryContents)
 import System.FilePath (takeDirectory, splitFileName, (</>))
+
+readGenericPackageDescription :: Distribution.Verbosity -> FilePath -> IO Distribution.GenericPackageDescription
+#if MIN_VERSION_Cabal(2, 0, 0)
+readGenericPackageDescription = Distribution.readGenericPackageDescription
+#else
+readGenericPackageDescription = Distribution.readPackageDescription
+#endif
 
 -- TODO: Fix callsites so we don't need `allComponentsBy`. It was taken from
 -- http://hackage.haskell.org/package/Cabal-1.16.0.3/docs/src/Distribution-Simple-LocalBuildInfo.html#allComponentsBy
@@ -84,8 +97,7 @@ getPackageGhcOpts path mbStack opts = do
   where
     getPackageGhcOpts' :: IO (Either String [String])
     getPackageGhcOpts' = do
-      -- TODO(SN): readPackageDescription is deprecated
-        genPkgDescr <- readPackageDescription silent path
+        genPkgDescr <- readGenericPackageDescription silent path
         distDir     <- getDistDir
       -- TODO(SN): defaultProgramConfiguration is deprecated
         let programCfg = defaultProgramConfiguration
