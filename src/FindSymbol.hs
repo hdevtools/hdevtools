@@ -24,6 +24,8 @@ import qualified GHC
 import qualified Packages as PKG
 import qualified Name
 
+import GhcTypes (getModSummaries)
+
 type SymbolName = String
 type ModuleName = String
 
@@ -37,7 +39,7 @@ findSymbol symbol = do
 
 findSymbolInFile :: SymbolName -> GHC.Ghc [GHC.Module]
 findSymbolInFile symbol =
-   filterM (containsSymbol symbol) =<< map GHC.ms_mod <$> GHC.getModuleGraph
+   filterM (containsSymbol symbol) =<< map GHC.ms_mod <$> getModSummaries
 
 
 findSymbolInPackages :: SymbolName -> GHC.Ghc [GHC.Module]

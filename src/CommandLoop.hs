@@ -35,6 +35,7 @@ import System.Posix.Types (EpochTime)
 import System.Posix.Files (getFileStatus, modificationTime)
 
 import Types (ClientDirective(..), Command(..), CommandExtra(..))
+import GhcTypes (needsTemplateHaskellOrQQ, getModSummaries)
 import Info (getIdentifierInfo, getType)
 import FindSymbol (findSymbol)
 import Cabal (getPackageGhcOpts)
@@ -212,9 +213,9 @@ loadTarget files conf = do
     targets <- mapM (flip GHC.guessTarget noPhase) files
     GHC.setTargets targets
     graph <- GHC.depanal [] True
-    if configTH conf || (not $ GHC.needsTemplateHaskell graph)
+    if configTH conf || (not $ needsTemplateHaskellOrQQ graph)
         then do
-            when (GHC.needsTemplateHaskell graph) $ do
+            when (needsTemplateHaskellOrQQ graph) $ do
                 flags <- GHC.getSessionDynFlags
                 void . GHC.setSessionDynFlags $ flags { GHC.hscTarget = GHC.HscInterpreted, GHC.ghcLink = GHC.LinkInMemory }
             Just <$> GHC.load GHC.LoadAllTargets
@@ -243,8 +244,8 @@ runCommand _ clientSend _ (CmdModuleFile moduleName) = do
                                               , ClientExit (ExitFailure 1)
                                               ]
       GHC.Succeeded -> do
-        moduleGraph <- GHC.getModuleGraph
-        case find (moduleSummaryMatchesModuleName moduleName) moduleGraph of
+        modSummaries <- getModSummaries
+        case find (moduleSummaryMatchesModuleName moduleName) modSummaries of
           Nothing -> liftIO $ mapM_ clientSend [ ClientStderr "Module not found"
                                                , ClientExit (ExitFailure 1)
                                                ]
