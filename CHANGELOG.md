@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.7.0 - 2018-08-08
+
+ * Add support for ghc-8.4 and Cabal-2.2.
+
 ## 0.1.6.1 - 2017-12-17
 
  * Fixed `moduleinfo` command to load targets correctly.
