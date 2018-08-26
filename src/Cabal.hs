@@ -20,18 +20,11 @@ import Data.Monoid (Monoid(..))
 import Distribution.Package (PackageIdentifier(..), PackageName)
 #endif
 import Distribution.PackageDescription (PackageDescription(..), Executable(..), TestSuite(..), Benchmark(..), emptyHookedBuildInfo, buildable, libBuildInfo)
-import qualified Distribution.PackageDescription as Distribution
-#if MIN_VERSION_Cabal(2, 2, 0)
-import qualified Distribution.PackageDescription.Parsec as Distribution
-#else
-import qualified Distribution.PackageDescription.Parse as Distribution
-#endif
 import Distribution.Simple.Configure (configure)
-import Distribution.Simple.LocalBuildInfo (LocalBuildInfo(..), Component(..), componentName, getComponentLocalBuildInfo, componentBuildInfo)
+import Distribution.Simple.LocalBuildInfo (LocalBuildInfo(..), Component(..), componentName, componentBuildInfo)
 import Distribution.Simple.Compiler (PackageDB(..))
 import Distribution.Simple.Command (CommandParse(..), commandParseArgs)
 import Distribution.Simple.GHC (componentGhcOptions)
-import Distribution.Simple.Program (defaultProgramConfiguration)
 import Distribution.Simple.Program.Db (lookupProgram)
 import Distribution.Simple.Program.Types (ConfiguredProgram(programVersion), simpleProgram)
 import Distribution.Simple.Program.GHC (GhcOptions(..), renderGhcOptions)
@@ -39,10 +32,23 @@ import Distribution.Simple.Setup (ConfigFlags(..), defaultConfigFlags, configure
 #if MIN_VERSION_Cabal(1,21,1)
 import Distribution.Utils.NubList
 #endif
-import qualified Distribution.Simple.GHC as GHC(configure)
 import Distribution.Verbosity (silent)
-import qualified Distribution.Verbosity as Distribution
 import Distribution.Version
+
+import qualified Distribution.PackageDescription as Distribution
+#if MIN_VERSION_Cabal(2, 2, 0)
+import qualified Distribution.PackageDescription.Parsec as Distribution
+#else
+import qualified Distribution.PackageDescription.Parse as Distribution
+#endif
+import qualified Distribution.Simple.Program as Program
+import qualified Distribution.Simple.GHC as GHC(configure)
+#if MIN_VERSION_Cabal(2, 0, 0)
+import qualified Distribution.Types.LocalBuildInfo as Distribution
+#else
+import Distribution.Simple.LocalBuildInfo (componentBuildInfo)
+#endif
+import qualified Distribution.Verbosity as Distribution
 
 import System.IO.Error (ioeGetErrorString)
 import System.Directory (doesFileExist, doesDirectoryExist, getDirectoryContents)
@@ -53,6 +59,14 @@ readGenericPackageDescription :: Distribution.Verbosity -> FilePath -> IO Distri
 readGenericPackageDescription = Distribution.readGenericPackageDescription
 #else
 readGenericPackageDescription = Distribution.readPackageDescription
+#endif
+
+#if MIN_VERSION_Cabal(2, 0, 0)
+defaultProgramDb :: Program.ProgramDb
+defaultProgramDb = Program.defaultProgramDb
+#else
+defaultProgramDb :: Program.ProgramConfiguration
+defaultProgramDb = Program.defaultProgramConfiguration
 #endif
 
 -- TODO: Fix callsites so we don't need `allComponentsBy`. It was taken from
@@ -100,8 +114,7 @@ getPackageGhcOpts path mbStack opts =
     getPackageGhcOpts' = do
         genPkgDescr <- readGenericPackageDescription silent path
         distDir     <- getDistDir
-      -- TODO(SN): defaultProgramConfiguration is deprecated
-        let programCfg = defaultProgramConfiguration
+        let programCfg = defaultProgramDb
         let initCfgFlags = (defaultConfigFlags programCfg)
                              { configDistPref = toFlag distDir
                              -- TODO: figure out how to find out this flag
@@ -134,12 +147,12 @@ getPackageGhcOpts path mbStack opts =
         case getGhcVersion localBuildInfo  of
             Nothing -> return $ Left "GHC is not configured"
             Just ghcVersion  -> do
-#if __GLASGOW_HASKELL__ < 802
                 let pkgDescr = localPkgDescr localBuildInfo
+#if __GLASGOW_HASKELL__ < 802
                 let mbLibName = pkgLibName pkgDescr
 #endif
-                let ghcOpts' = foldl' mappend mempty . map (getComponentGhcOptions localBuildInfo) .
-                               flip allComponentsBy id . localPkgDescr $ localBuildInfo
+                let ghcOpts' = foldl' mappend mempty . map (getComponentGhcOptions localBuildInfo) $
+                               flip allComponentsBy id pkgDescr
                     -- FIX bug in GhcOptions' `mappend`
 #if MIN_VERSION_Cabal(2,4,0)
 -- API Change, just for the glory of Satan:
@@ -169,8 +182,7 @@ getPackageGhcOpts path mbStack opts =
 #endif
                 let hcPath = flagToMaybe . configHcPath $ configFlags localBuildInfo
                 let pkgPath = flagToMaybe . configHcPkg $ configFlags localBuildInfo
-                -- TODO(SN): defaultProgramConfiguration is deprecated
-                (ghcInfo, mbPlatform, _) <- GHC.configure silent hcPath pkgPath defaultProgramConfiguration
+                (ghcInfo, mbPlatform, _) <- GHC.configure silent hcPath pkgPath defaultProgramDb
                 putStrLn $ "Configured GHC " ++ show ghcVersion
                                              ++ " " ++ show mbPlatform
 #if MIN_VERSION_Cabal(1,23,2)
@@ -203,18 +215,21 @@ pkgLibName :: PackageDescription -> Maybe PackageName
 pkgLibName pkgDescr = if hasLibrary pkgDescr
                       then Just $ pkgName . package $ pkgDescr
                       else Nothing
-#endif
 
 hasLibrary :: PackageDescription -> Bool
 hasLibrary = isJust . library
+#endif
 
 getComponentGhcOptions :: LocalBuildInfo -> Component -> GhcOptions
 getComponentGhcOptions lbi comp =
-    componentGhcOptions silent lbi bi clbi (buildDir lbi)
+    foldMap (\clbi -> componentGhcOptions silent lbi bi clbi (buildDir lbi)) clbis
 
   where bi   = componentBuildInfo comp
-        -- TODO(SN): getComponentLocalBuildInfo is deprecated as of Cabal-2.0.0.2
-        clbi = getComponentLocalBuildInfo lbi (componentName comp)
+#if MIN_VERSION_Cabal(2,0,0)
+        clbis = Distribution.componentNameCLBIs lbi (componentName comp)
+#else
+        clbis = [getComponentLocalBuildInfo lbi (componentName comp)]
+#endif
 
 getGhcVersion :: LocalBuildInfo -> Maybe Version
 getGhcVersion lbi = let db = withPrograms lbi
