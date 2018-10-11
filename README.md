@@ -67,9 +67,22 @@ automatically check your Haskell files.
 used by [vim-hdevtools][3], see below). See the section "Specifying GHC
 Options" below for details how to use it.
 
+### Vim - [ALE][16] ###
+
+[ALE][16] is an asynchronous linting and fixing suite for Vim and NeoVim.
+Support for `hdevtools` is built-in since v1.2.0 (Feb. 2017).
+
+Install `hdevtools` (see above) and [ALE][16], and it will automatically and
+asynchronously (as you type) check your Haskell files.
+
+[ALE][16] can pass `g:ale_haskell_hdevtools_options` variable to CLI `hdevtools`,
+it's the same as configuring `g:hdevtools_options` (see "Specifying GHC Options"
+below). `g:ale_haskell_hdevtools_executable` can be used to set an alternate
+path to `hdevtools`.
+
 ### Vim - [vim-hdevtools][3] ###
 
-In addition to Syntastic, it is recommended that you also use
+In addition to Syntastic or ALE, it is recommended that you also use
 [`vim-hdevtools`][3] for additional functionality.
 
 [`vim-hdevtools`][3] offers integration with the rest of the `hdevtools` tools,
@@ -244,3 +257,4 @@ Credits
 [13]: https://github.com/schell/hdevtools
 [14]: https://www.stackage.org/package/hdevtools
 [15]: haskellstack.org
+[16]: https://github.com/w0rp/ale
