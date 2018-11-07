@@ -123,9 +123,11 @@ getSrcSpan (GHC.RealSrcSpan spn) =
          , GHC.srcSpanEndCol spn)
 getSrcSpan _ = Nothing
 
-getTypeLHsBind :: GHC.TypecheckedModule -> GHC.LHsBind TypecheckI -> GHC.Ghc (Maybe (GHC.SrcSpan, GHC.Type))
+getTypeLHsBind :: GHC.TypecheckedModule -> GHC.LHsBind TypecheckI
+    -> GHC.Ghc (Maybe (GHC.SrcSpan, GHC.Type))
 #if __GLASGOW_HASKELL__ >= 708
-getTypeLHsBind _ (GHC.L spn GHC.FunBind{GHC.fun_matches = grp}) = return $ Just (spn, HsExpr.mg_res_ty grp)
+getTypeLHsBind _ (GHC.L spn GHC.FunBind{GHC.fun_matches = grp}) =
+    return $ Just (spn, HsExpr.mg_res_ty $ HsExpr.mg_ext grp)
 #else
 getTypeLHsBind _ (GHC.L spn GHC.FunBind{GHC.fun_matches = GHC.MatchGroup _ typ}) = return $ Just (spn, typ)
 #endif
@@ -208,10 +210,20 @@ data Stage = Parser | Renamer | TypeChecker deriving (Eq,Ord,Show)
 --   generated the Ast.
 everythingStaged :: Stage -> (r -> r -> r) -> r -> GenericQ r -> GenericQ r
 everythingStaged stage k z f x
-  | (const False `extQ` postTcType `extQ` fixity `extQ` nameSet) x = z
+#if __GLASGOW_HASKELL__ >= 860
+-- This is a hack, ghc 8.6 changed representation from PostTc
+-- to a whole bunch of individial types and I don't really want
+-- to handle all of them, at least for the moment since I'm not using
+-- this functionality
+  | (const False `extQ` fixity `extQ` nameSet) x = z
+#else
+  | (const False `extQ` {- postTcType `extQ` -} fixity `extQ` nameSet) x = z
+#endif
   | otherwise = foldl k (f x) (gmapQ (everythingStaged stage k z f) x)
   where nameSet    = const (stage `elem` [Parser,TypeChecker]) :: NameSet.NameSet -> Bool
-#if __GLASGOW_HASKELL__ >= 709
+#if __GLASGOW_HASKELL__ >= 806
+        -- there's no more "simple" PostTc type in ghc 8.6
+#elif __GLASGOW_HASKELL__ >= 709
         postTcType = const (stage<TypeChecker)                 :: GHC.PostTc TypecheckI GHC.Type -> Bool
 #else
         postTcType = const (stage<TypeChecker)                 :: GHC.PostTcType -> Bool
