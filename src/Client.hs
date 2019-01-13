@@ -8,7 +8,7 @@ import Control.Exception (tryJust)
 import Control.Monad (guard)
 import Network (PortID(UnixSocket), connectTo)
 import System.Exit (exitFailure, exitWith)
-import System.IO (Handle, hClose, hFlush, hGetLine, hPutStrLn, stderr)
+import System.IO (Handle, hClose, hFlush, hGetLine, hPutStrLn, hPrint, stderr)
 import System.IO.Error (isDoesNotExistError)
 
 import Daemonize (daemonize)
@@ -17,20 +17,20 @@ import Types (ClientDirective(..), Command(..), CommandExtra(..), ServerDirectiv
 import Util (readMaybe)
 
 connect :: FilePath -> IO Handle
-connect sock = do
+connect sock = 
   connectTo "" (UnixSocket sock)
 
 getServerStatus :: FilePath -> IO ()
 getServerStatus sock = do
     h <- connect sock
-    hPutStrLn h $ show SrvStatus
+    hPrint h SrvStatus
     hFlush h
     startClientReadLoop h
 
 stopServer :: FilePath -> IO ()
 stopServer sock = do
     h <- connect sock
-    hPutStrLn h $ show SrvExit
+    hPrint h SrvExit
     hFlush h
     startClientReadLoop h
 
@@ -39,7 +39,7 @@ serverCommand sock cmd cmdExtra = do
     r <- tryJust (guard . isDoesNotExistError) (connect sock)
     case r of
         Right h -> do
-            hPutStrLn h $ show (SrvCommand cmd cmdExtra)
+            hPrint h (SrvCommand cmd cmdExtra)
             hFlush h
             startClientReadLoop h
         Left _ -> do
