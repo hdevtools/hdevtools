@@ -64,7 +64,7 @@ getStackDist p = (trim <$>) <$> execStackInPath "path --dist-dir" p
 getStackDbs :: FilePath -> IO (Maybe [FilePath])
 getStackDbs p =
   execStackInPath "path --ghc-package-path" p >>=
-  maybe (return Nothing) (\pp -> return <$> extractDbs pp)
+  maybe (return Nothing) (fmap return . extractDbs)
 
 extractDbs :: String -> IO [FilePath]
 extractDbs = filterM doesDirectoryExist . stringPaths
