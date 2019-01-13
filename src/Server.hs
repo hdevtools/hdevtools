@@ -1,13 +1,13 @@
 module Server where
 
 import Control.Exception (bracket, finally, handleJust, tryJust)
-import Control.Monad (guard)
+import Control.Monad (guard, forM_)
 import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 import GHC.IO.Exception (IOErrorType(ResourceVanished))
 import Network (PortID(UnixSocket), Socket, accept, listenOn, sClose)
 import System.Directory (removeFile)
 import System.Exit (ExitCode(ExitSuccess))
-import System.IO (Handle, hClose, hFlush, hGetLine, hPutStrLn)
+import System.IO (Handle, hClose, hFlush, hGetLine, hPutStrLn, hPrint)
 import System.IO.Error (ioeGetErrorType, isAlreadyInUseError, isDoesNotExistError)
 
 import CommandLoop (newCommandLoopState, Config, updateConfig, startCommandLoop)
@@ -24,10 +24,10 @@ createListenSocket socketPath = do
             listenOn (UnixSocket socketPath)
 
 startServer :: FilePath -> Maybe Socket -> CommandExtra -> IO ()
-startServer socketPath mbSock cmdExtra = do
+startServer socketPath mbSock cmdExtra = 
     case mbSock of
         Nothing -> bracket (createListenSocket socketPath) cleanup go
-        Just sock -> (go sock) `finally` (cleanup sock)
+        Just sock -> go sock `finally` cleanup sock
     where
     cleanup :: Socket -> IO ()
     cleanup sock = do
@@ -53,7 +53,7 @@ clientSend currentClient clientDirective = do
     mbH <- readIORef currentClient
     case mbH of
         Just h -> ignoreEPipe $ do
-            hPutStrLn h (show clientDirective)
+            hPrint h clientDirective
             hFlush h
         Nothing -> return ()
     where
@@ -64,9 +64,7 @@ clientSend currentClient clientDirective = do
 getNextCommand :: IORef (Maybe Handle) -> Socket -> IORef (Maybe Config) -> IO (Maybe (Command, Config))
 getNextCommand currentClient sock config = do
     checkCurrent <- readIORef currentClient
-    case checkCurrent of
-        Just h -> hClose h
-        Nothing -> return ()
+    forM_ checkCurrent hClose
     (h, _, _) <- accept sock
     writeIORef currentClient (Just h)
     msg <- hGetLine h -- TODO catch exception
@@ -82,13 +80,13 @@ getNextCommand currentClient sock config = do
             writeIORef config (Just config')
             return $ Just (cmd, config')
         Just SrvStatus -> do
-            mapM_ (clientSend currentClient) $
+            mapM_ (clientSend currentClient)
                 [ ClientStdout "Server is running."
                 , ClientExit ExitSuccess
                 ]
             getNextCommand currentClient sock config
         Just SrvExit -> do
-            mapM_ (clientSend currentClient) $
+            mapM_ (clientSend currentClient)
                 [ ClientStdout "Shutting down server."
                 , ClientExit ExitSuccess
                 ]
