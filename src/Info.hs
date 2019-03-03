@@ -5,7 +5,6 @@ module Info
     , getType
     ) where
 
-import Control.Monad (liftM)
 import Data.Generics (GenericQ, mkQ, extQ, gmapQ)
 import Data.List (find, sortBy, intersperse)
 import Data.Maybe (catMaybes, fromMaybe)
@@ -124,12 +123,14 @@ getSrcSpan (GHC.RealSrcSpan spn) =
 getSrcSpan _ = Nothing
 
 getTypeLHsBind :: GHC.TypecheckedModule -> GHC.LHsBind TypecheckI -> GHC.Ghc (Maybe (GHC.SrcSpan, GHC.Type))
-#if __GLASGOW_HASKELL__ >= 860
+#if __GLASGOW_HASKELL__ >= 806
 getTypeLHsBind _ (GHC.L spn GHC.FunBind{GHC.fun_matches = grp}) = return $ Just (spn, HsExpr.mg_res_ty $ HsExpr.mg_ext grp)
+#else
 #if __GLASGOW_HASKELL__ >= 708
 getTypeLHsBind _ (GHC.L spn GHC.FunBind{GHC.fun_matches = grp}) = return $ Just (spn, HsExpr.mg_res_ty grp)
 #else
 getTypeLHsBind _ (GHC.L spn GHC.FunBind{GHC.fun_matches = GHC.MatchGroup _ typ}) = return $ Just (spn, typ)
+#endif
 #endif
 getTypeLHsBind _ _ = return Nothing
 
@@ -210,14 +211,14 @@ data Stage = Parser | Renamer | TypeChecker deriving (Eq,Ord,Show)
 --   generated the Ast.
 everythingStaged :: Stage -> (r -> r -> r) -> r -> GenericQ r -> GenericQ r
 everythingStaged stage k z f x
-#if __GLASGOW_HASKELL__ >= 860
+#if __GLASGOW_HASKELL__ >= 806
 -- This is a hack, ghc 8.6 changed representation from PostTc
 -- to a whole bunch of individial types and I don't really want
 -- to handle all of them, at least for the moment since I'm not using
 -- this functionality
   | (const False `extQ` fixity `extQ` nameSet) x = z
 #else
-  | (const False `extQ` {- postTcType `extQ` -} fixity `extQ` nameSet) x = z
+  | (const False `extQ` postTcType `extQ` fixity `extQ` nameSet) x = z
 #endif
   | otherwise = foldl k (f x) (gmapQ (everythingStaged stage k z f) x)
   where nameSet    = const (stage `elem` [Parser,TypeChecker]) :: NameSet.NameSet -> Bool

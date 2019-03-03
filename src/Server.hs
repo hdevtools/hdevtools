@@ -1,13 +1,13 @@
 module Server where
 
 import Control.Exception (bracket, finally, handleJust, tryJust)
-import Control.Monad (guard, forM_)
+import Control.Monad (guard)
 import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 import GHC.IO.Exception (IOErrorType(ResourceVanished))
 import Network (PortID(UnixSocket), Socket, accept, listenOn, sClose)
 import System.Directory (removeFile)
 import System.Exit (ExitCode(ExitSuccess))
-import System.IO (Handle, hClose, hFlush, hGetLine, hPutStrLn, hPrint)
+import System.IO (Handle, hClose, hFlush, hGetLine, hPrint)
 import System.IO.Error (ioeGetErrorType, isAlreadyInUseError, isDoesNotExistError)
 
 import CommandLoop (newCommandLoopState, Config, updateConfig, startCommandLoop)
@@ -24,7 +24,7 @@ createListenSocket socketPath = do
             listenOn (UnixSocket socketPath)
 
 startServer :: FilePath -> Maybe Socket -> CommandExtra -> IO ()
-startServer socketPath mbSock cmdExtra = 
+startServer socketPath mbSock cmdExtra =
     case mbSock of
         Nothing -> bracket (createListenSocket socketPath) cleanup go
         Just sock -> go sock `finally` cleanup sock
@@ -64,7 +64,7 @@ clientSend currentClient clientDirective = do
 getNextCommand :: IORef (Maybe Handle) -> Socket -> IORef (Maybe Config) -> IO (Maybe (Command, Config))
 getNextCommand currentClient sock config = do
     checkCurrent <- readIORef currentClient
-    forM_ checkCurrent hClose
+    maybe (return ()) hClose checkCurrent
     (h, _, _) <- accept sock
     writeIORef currentClient (Just h)
     msg <- hGetLine h -- TODO catch exception
