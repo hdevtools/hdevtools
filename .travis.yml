@@ -80,15 +80,15 @@ matrix:
     compiler: ": #stack lts-8 ghc-8.0.2"
     addons: {apt: {packages: [libgmp-dev]}}
 
-    - env: BUILD=stack ARGS="--resolver lts-10"
+  - env: BUILD=stack ARGS="--resolver lts-10"
     compiler: ": #stack lts-10 ghc-8.2.2"
     addons: {apt: {packages: [libgmp-dev]}}
 
-    - env: BUILD=stack ARGS="--resolver lts-12"
+  - env: BUILD=stack ARGS="--resolver lts-12"
     compiler: ": #stack lts-12 ghc-8.4.4"
     addons: {apt: {packages: [libgmp-dev]}}
 
-    - env: BUILD=stack ARGS="--resolver lts-13"
+  - env: BUILD=stack ARGS="--resolver lts-13"
     compiler: ": #stack lts-13 ghc-8.6.3"
     addons: {apt: {packages: [libgmp-dev]}}
 
