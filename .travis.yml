@@ -44,6 +44,10 @@ matrix:
     compiler: ": #GHC 8.4.3"
     addons: {apt: {packages: [cabal-install-2.0,ghc-8.4.3], sources: [hvr-ghc]}}
 
+  - env: BUILD=cabal GHCVER=8.6.3 CABALVER=2.4
+    compiler: ": #GHC 8.6.3"
+    addons: {apt: {packages: [cabal-install-2.4,ghc-8.6.3], sources: [hvr-ghc]}}
+
   # Build with the newest GHC and cabal-install. This is an accepted failure,
   # see below.
   - env: BUILD=cabal GHCVER=head  CABALVER=head
@@ -76,8 +80,16 @@ matrix:
     compiler: ": #stack lts-8 ghc-8.0.2"
     addons: {apt: {packages: [libgmp-dev]}}
 
-  - env: BUILD=stack ARGS="--resolver lts-9"
-    compiler: ": #stack lts-9 ghc-8.0.2"
+    - env: BUILD=stack ARGS="--resolver lts-10"
+    compiler: ": #stack lts-10 ghc-8.2.2"
+    addons: {apt: {packages: [libgmp-dev]}}
+
+    - env: BUILD=stack ARGS="--resolver lts-12"
+    compiler: ": #stack lts-12 ghc-8.4.4"
+    addons: {apt: {packages: [libgmp-dev]}}
+
+    - env: BUILD=stack ARGS="--resolver lts-13"
+    compiler: ": #stack lts-13 ghc-8.6.3"
     addons: {apt: {packages: [libgmp-dev]}}
 
   # Nightly builds are allowed to fail
@@ -106,8 +118,20 @@ matrix:
     compiler: ": #stack lts-8 8.0.2 osx"
     os: osx
 
-  - env: BUILD=stack ARGS="--resolver lts-9"
-    compiler: ": #stack lts-9 8.0.2.2 osx"
+  - env: BUILD=stack ARGS="--resolver lts-8"
+    compiler: ": #stack lts-8 ghc-8.0.2 osx"
+    os: osx
+
+  - env: BUILD=stack ARGS="--resolver lts-10"
+    compiler: ": #stack lts-10 ghc-8.2.2 osx"
+    os: osx
+
+  - env: BUILD=stack ARGS="--resolver lts-12"
+    compiler: ": #stack lts-12 ghc-8.4.4 osx"
+    os: osx
+
+  - env: BUILD=stack ARGS="--resolver lts-13"
+    compiler: ": #stack lts-13 ghc-8.6.3 osx"
     os: osx
 
   - env: BUILD=stack ARGS="--resolver nightly"
