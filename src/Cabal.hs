@@ -141,7 +141,7 @@ getPackageGhcOpts path mbStack opts =
                 let ghcOpts' = foldl' mappend mempty . map (getComponentGhcOptions localBuildInfo) .
                                flip allComponentsBy id . localPkgDescr $ localBuildInfo
                     -- FIX bug in GhcOptions' `mappend`
-#if MIN_VERSION_Cabal(2,0,0)
+#if MIN_VERSION_Cabal(2,4,0)
 -- API Change, just for the glory of Satan:
 -- Distribution.Simple.Program.GHC.GhcOptions no longer uses NubListR's
                     ghcOpts = ghcOpts' { ghcOptExtra = filter (/= "-Werror") $ ghcOptExtra ghcOpts'
