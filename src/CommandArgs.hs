@@ -261,20 +261,20 @@ full progName = modes_ [admin += auto, check, moduleFile, info, type_, findSymbo
 
 
 fileArg :: HDevTools -> Maybe String
-fileArg (Admin {})      = Nothing
-fileArg (ModuleFile {}) = Nothing
-fileArg a@(Check {}) = Just $ file a
-fileArg a@(Info  {}) = Just $ file a
-fileArg a@(Type  {}) = Just $ file a
-fileArg (FindSymbol {}) = Nothing
+fileArg Admin {}      = Nothing
+fileArg ModuleFile {} = Nothing
+fileArg a@Check {} = Just $ file a
+fileArg a@Info  {} = Just $ file a
+fileArg a@Type  {} = Just $ file a
+fileArg FindSymbol {} = Nothing
 
 pathArg' :: HDevTools -> Maybe String
-pathArg' (Admin {})      = Nothing
-pathArg' (ModuleFile {}) = Nothing
-pathArg' a@(Check {}) = path a
-pathArg' a@(Info  {}) = path a
-pathArg' a@(Type  {}) = path a
-pathArg' (FindSymbol {}) = Nothing
+pathArg' Admin {}      = Nothing
+pathArg' ModuleFile {} = Nothing
+pathArg' a@Check {} = path a
+pathArg' a@Info  {} = path a
+pathArg' a@Type  {} = path a
+pathArg' FindSymbol {} = Nothing
 
 pathArg :: HDevTools -> Maybe String
 pathArg a = case pathArg' a of

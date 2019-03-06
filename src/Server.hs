@@ -1,37 +1,50 @@
 module Server where
 
-import Control.Exception (bracket, finally, handleJust, tryJust)
-import Control.Monad (guard)
-import Data.IORef (IORef, newIORef, readIORef, writeIORef)
-import GHC.IO.Exception (IOErrorType(ResourceVanished))
-import Network (PortID(UnixSocket), Socket, accept, listenOn, sClose)
-import System.Directory (removeFile)
-import System.Exit (ExitCode(ExitSuccess))
-import System.IO (Handle, hClose, hFlush, hGetLine, hPutStrLn)
-import System.IO.Error (ioeGetErrorType, isAlreadyInUseError, isDoesNotExistError)
+import           Control.Exception (bracket, finally, handleJust, tryJust)
+import           Control.Monad     (guard)
+import           Data.IORef        (IORef, newIORef, readIORef, writeIORef)
+import           GHC.IO.Exception  (IOErrorType (ResourceVanished))
+import           Network.Socket    (Family (AF_UNIX), SockAddr (SockAddrUnix),
+                                    Socket, SocketType (Stream), accept, bind,
+                                    close, defaultProtocol, listen, socket,
+                                    socketToHandle)
+import           System.Directory  (removeFile)
+import           System.Exit       (ExitCode (ExitSuccess))
+import           System.IO         (Handle, IOMode (ReadWriteMode), hClose,
+                                    hFlush, hGetLine, hPrint)
+import           System.IO.Error   (ioeGetErrorType, isAlreadyInUseError,
+                                    isDoesNotExistError)
 
-import CommandLoop (newCommandLoopState, Config, updateConfig, startCommandLoop)
-import Types (ClientDirective(..), Command, CommandExtra(..), ServerDirective(..))
-import Util (readMaybe)
+import           CommandLoop       (Config, newCommandLoopState,
+                                    startCommandLoop, updateConfig)
+import           Types             (ClientDirective (..), Command,
+                                    CommandExtra (..), ServerDirective (..))
+import           Util              (readMaybe)
 
 createListenSocket :: FilePath -> IO Socket
 createListenSocket socketPath = do
-    r <- tryJust (guard . isAlreadyInUseError) $ listenOn (UnixSocket socketPath)
+    r <- tryJust (guard . isAlreadyInUseError) listenOn
     case r of
-        Right socket -> return socket
+        Right s -> return s
         Left _ -> do
             removeFile socketPath
-            listenOn (UnixSocket socketPath)
+            listenOn
+  where
+    listenOn = do
+        s <- socket AF_UNIX Stream defaultProtocol
+        bind s $ SockAddrUnix socketPath
+        listen s 1
+        return s
 
 startServer :: FilePath -> Maybe Socket -> CommandExtra -> IO ()
-startServer socketPath mbSock cmdExtra = do
+startServer socketPath mbSock cmdExtra =
     case mbSock of
-        Nothing -> bracket (createListenSocket socketPath) cleanup go
-        Just sock -> (go sock) `finally` (cleanup sock)
-    where
+        Nothing   -> bracket (createListenSocket socketPath) cleanup go
+        Just sock -> go sock `finally` cleanup sock
+  where
     cleanup :: Socket -> IO ()
     cleanup sock = do
-        sClose sock
+        close sock
         removeSocketFile
 
     go :: Socket -> IO ()
@@ -53,10 +66,10 @@ clientSend currentClient clientDirective = do
     mbH <- readIORef currentClient
     case mbH of
         Just h -> ignoreEPipe $ do
-            hPutStrLn h (show clientDirective)
+            hPrint h clientDirective
             hFlush h
         Nothing -> return ()
-    where
+  where
     -- EPIPE means that the client is no longer there.
     ignoreEPipe = handleJust (guard . isEPipe) (const $ return ())
     isEPipe = (==ResourceVanished) . ioeGetErrorType
@@ -64,10 +77,9 @@ clientSend currentClient clientDirective = do
 getNextCommand :: IORef (Maybe Handle) -> Socket -> IORef (Maybe Config) -> IO (Maybe (Command, Config))
 getNextCommand currentClient sock config = do
     checkCurrent <- readIORef currentClient
-    case checkCurrent of
-        Just h -> hClose h
-        Nothing -> return ()
-    (h, _, _) <- accept sock
+    maybe (return ()) hClose checkCurrent
+    (s, _) <- accept sock
+    h <- socketToHandle s ReadWriteMode
     writeIORef currentClient (Just h)
     msg <- hGetLine h -- TODO catch exception
     let serverDirective = readMaybe msg
@@ -82,13 +94,13 @@ getNextCommand currentClient sock config = do
             writeIORef config (Just config')
             return $ Just (cmd, config')
         Just SrvStatus -> do
-            mapM_ (clientSend currentClient) $
+            mapM_ (clientSend currentClient)
                 [ ClientStdout "Server is running."
                 , ClientExit ExitSuccess
                 ]
             getNextCommand currentClient sock config
         Just SrvExit -> do
-            mapM_ (clientSend currentClient) $
+            mapM_ (clientSend currentClient)
                 [ ClientStdout "Shutting down server."
                 , ClientExit ExitSuccess
                 ]

@@ -11,6 +11,7 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.State (execStateT, modify)
 import Data.Char (isSpace)
 import Data.List (foldl', nub, sort, find, isPrefixOf, isSuffixOf)
+import Data.Maybe (isJust)
 #if __GLASGOW_HASKELL__ < 709
 import Control.Applicative ((<$>))
 import Data.Monoid (Monoid(..))
@@ -91,9 +92,9 @@ stackifyFlags cfg (Just si) = cfg { configHcPath = toFlag ghc
 -- cabal configure --package-db=clear --package-db=global --package-db=$(stack path --snapshot-pkg-db) --package-db=$(stack path --local-pkg-db)
 
 getPackageGhcOpts :: FilePath -> Maybe StackConfig -> [String] -> IO (Either String [String])
-getPackageGhcOpts path mbStack opts = do
-    getPackageGhcOpts' `catch` (\e -> do
-        return $ Left $ "Cabal error: " ++ (ioeGetErrorString (e :: IOException)))
+getPackageGhcOpts path mbStack opts =
+    getPackageGhcOpts' `catch` (\e ->
+        return $ Left $ "Cabal error: " ++ ioeGetErrorString (e :: IOException))
   where
     getPackageGhcOpts' :: IO (Either String [String])
     getPackageGhcOpts' = do
@@ -118,7 +119,7 @@ getPackageGhcOpts path mbStack opts = do
           let sandboxConfig = takeDirectory path </> "cabal.sandbox.config"
 
           exists <- lift $ doesFileExist sandboxConfig
-          when (exists) $ do
+          when exists $ do
             sandboxPackageDb <- lift $ getSandboxPackageDB sandboxConfig
             modify $ \x -> x { configPackageDBs = [Just sandboxPackageDb] }
 
@@ -138,13 +139,19 @@ getPackageGhcOpts path mbStack opts = do
                 let mbLibName = pkgLibName pkgDescr
 #endif
                 let ghcOpts' = foldl' mappend mempty . map (getComponentGhcOptions localBuildInfo) .
-                               flip allComponentsBy (\c -> c) . localPkgDescr $ localBuildInfo
+                               flip allComponentsBy id . localPkgDescr $ localBuildInfo
                     -- FIX bug in GhcOptions' `mappend`
-#if MIN_VERSION_Cabal(1,21,1)
+#if MIN_VERSION_Cabal(2,4,0)
+-- API Change, just for the glory of Satan:
+-- Distribution.Simple.Program.GHC.GhcOptions no longer uses NubListR's
+                    ghcOpts = ghcOpts' { ghcOptExtra = filter (/= "-Werror") $ ghcOptExtra ghcOpts'
+#elif MIN_VERSION_Cabal(1,21,1)
 -- API Change:
 -- Distribution.Simple.Program.GHC.GhcOptions now uses NubListR's
 --  GhcOptions { .. ghcOptPackages :: NubListR (InstalledPackageId, PackageId, ModuleRemaining) .. }
                     ghcOpts = ghcOpts' { ghcOptExtra = overNubListR (filter (/= "-Werror")) $ ghcOptExtra ghcOpts'
+#endif
+#if MIN_VERSION_Cabal(1,21,1)
 #if __GLASGOW_HASKELL__ >= 709
                                        , ghcOptPackageDBs = sort $ nub (ghcOptPackageDBs ghcOpts')
 #endif
@@ -199,7 +206,7 @@ pkgLibName pkgDescr = if hasLibrary pkgDescr
 #endif
 
 hasLibrary :: PackageDescription -> Bool
-hasLibrary = maybe False (\_ -> True) . library
+hasLibrary = isJust . library
 
 getComponentGhcOptions :: LocalBuildInfo -> Component -> GhcOptions
 getComponentGhcOptions lbi comp =
@@ -221,9 +228,8 @@ getSandboxPackageDB sandboxPath = do
   where
     pkgDbKey = "package-db:"
     parse = head . filter (pkgDbKey `isPrefixOf`) . lines
-    extractValue = fst . break (`elem` "\n\r") . dropWhile isSpace . drop (length pkgDbKey)
-
-
+    extractValue = takeWhile (`notElem` "\n\r") . dropWhile isSpace . drop (length pkgDbKey)
+    
 -- | looks for file matching a predicate starting from dir and going up until root
 findFile :: (FilePath -> Bool) -> FilePath -> IO (Maybe FilePath)
 findFile p dir = do

@@ -48,7 +48,7 @@ data State = State
     }
 
 newCommandLoopState :: IO (IORef State)
-newCommandLoopState = do
+newCommandLoopState = 
     newIORef $ State
         { stateWarningsEnabled = True
         }
@@ -81,7 +81,7 @@ updateConfig mConfig cmdExtra = do
     mbCabalConfig <- traverse (\path -> mkCabalConfig path (ceCabalOptions cmdExtra)) $
       ceCabalFilePath cmdExtra
 
-    mbStackConfig <- if (stackYaml <$> msc) == (ceStackYamlPath cmdExtra)
+    mbStackConfig <- if (stackYaml <$> msc) == ceStackYamlPath cmdExtra
       then return msc
       else getStackConfig cmdExtra
 
@@ -97,13 +97,12 @@ type CommandObj = (Command, Config)
 
 withWarnings :: (MonadIO m, Exception.ExceptionMonad m) => IORef State -> Bool -> m a -> m a
 withWarnings state warningsValue action = do
-    beforeState <- liftIO $ getWarnings
+    beforeState <- liftIO getWarnings
     liftIO $ setWarnings warningsValue
-    action `GHC.gfinally`
-        (liftIO $ setWarnings beforeState)
+    action `GHC.gfinally` liftIO (setWarnings beforeState)
     where
     getWarnings :: IO Bool
-    getWarnings = readIORef state >>= return . stateWarningsEnabled
+    getWarnings = stateWarningsEnabled <$> readIORef state
     setWarnings :: Bool -> IO ()
     setWarnings val = modifyIORef state $ \s -> s { stateWarningsEnabled = val }
 
@@ -146,7 +145,7 @@ startCommandLoop state clientSend getNextCommand initialConfig mbInitialCommand 
                         processNextCommand False
 
     sendErrors :: GHC.Ghc () -> GHC.Ghc ()
-    sendErrors action = do
+    sendErrors action = 
             action `GHC.gcatch` ghcError
                    `GHC.gcatch` sourceError
                    `GHC.gcatch` unknownError
@@ -210,10 +209,10 @@ configSession state clientSend config = do
 loadTarget :: [FilePath] -> Config -> GHC.Ghc (Maybe GHC.SuccessFlag)
 loadTarget files conf = do
     let noPhase = Nothing
-    targets <- mapM (flip GHC.guessTarget noPhase) files
+    targets <- mapM (`GHC.guessTarget` noPhase) files
     GHC.setTargets targets
     graph <- GHC.depanal [] True
-    if configTH conf || (not $ needsTemplateHaskellOrQQ graph)
+    if configTH conf || not (needsTemplateHaskellOrQQ graph)
         then do
             when (needsTemplateHaskellOrQQ graph) $ do
                 flags <- GHC.getSessionDynFlags

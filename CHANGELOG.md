@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.8.0 - UNRELEASED
+
+ * Add support for ghc-8.6 and Cabal-2.4.
+
 ## 0.1.7.0 - 2018-08-08
 
  * Add support for ghc-8.4 and Cabal-2.2.

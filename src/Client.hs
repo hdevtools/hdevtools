@@ -4,42 +4,47 @@ module Client
     , serverCommand
     ) where
 
-import Control.Exception (tryJust)
-import Control.Monad (guard)
-import Network (PortID(UnixSocket), connectTo)
-import System.Exit (exitFailure, exitWith)
-import System.IO (Handle, hClose, hFlush, hGetLine, hPutStrLn, stderr)
-import System.IO.Error (isDoesNotExistError)
+import           Control.Exception (bracket, tryJust)
+import           Control.Monad     (guard)
+import           Daemonize         (daemonize)
+import           Network.Socket    (Family (AF_UNIX), SockAddr (SockAddrUnix),
+                                    SocketType (Stream), connect,
+                                    defaultProtocol, socket, socketToHandle)
+import           Server            (createListenSocket, startServer)
+import           System.Exit       (exitFailure, exitWith)
+import           System.IO         (Handle, IOMode (ReadWriteMode), hClose,
+                                    hFlush, hGetLine, hPrint, hPutStrLn, stderr)
+import           System.IO.Error   (isDoesNotExistError)
+import           Types             (ClientDirective (..), Command (..),
+                                    CommandExtra (..), ServerDirective (..))
+import           Util              (readMaybe)
 
-import Daemonize (daemonize)
-import Server (createListenSocket, startServer)
-import Types (ClientDirective(..), Command(..), CommandExtra(..), ServerDirective(..))
-import Util (readMaybe)
-
-connect :: FilePath -> IO Handle
-connect sock = do
-  connectTo "" (UnixSocket sock)
+connectSocket :: FilePath -> IO Handle
+connectSocket sock = do
+  s <- socket AF_UNIX Stream defaultProtocol
+  connect s (SockAddrUnix sock)
+  socketToHandle s ReadWriteMode
 
 getServerStatus :: FilePath -> IO ()
-getServerStatus sock = do
-    h <- connect sock
-    hPutStrLn h $ show SrvStatus
-    hFlush h
-    startClientReadLoop h
+getServerStatus sock =
+    bracket (connectSocket sock) hClose $ \h -> do
+      hPrint h SrvStatus
+      hFlush h
+      startClientReadLoop h
 
 stopServer :: FilePath -> IO ()
 stopServer sock = do
-    h <- connect sock
-    hPutStrLn h $ show SrvExit
-    hFlush h
-    startClientReadLoop h
+    bracket (connectSocket sock) hClose $ \h -> do
+      hPrint h SrvExit
+      hFlush h
+      startClientReadLoop h
 
 serverCommand :: FilePath -> Command -> CommandExtra -> IO ()
 serverCommand sock cmd cmdExtra = do
-    r <- tryJust (guard . isDoesNotExistError) (connect sock)
+    r <- tryJust (guard . isDoesNotExistError) (connectSocket sock)
     case r of
         Right h -> do
-            hPutStrLn h $ show (SrvCommand cmd cmdExtra)
+            hPrint h (SrvCommand cmd cmdExtra)
             hFlush h
             startClientReadLoop h
         Left _ -> do

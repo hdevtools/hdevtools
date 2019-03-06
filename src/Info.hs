@@ -5,7 +5,6 @@ module Info
     , getType
     ) where
 
-import Control.Monad (liftM)
 import Data.Generics (GenericQ, mkQ, extQ, gmapQ)
 import Data.List (find, sortBy, intersperse)
 import Data.Maybe (catMaybes, fromMaybe)
@@ -42,7 +41,7 @@ getIdentifierInfo file identifier =
         GHC.setContext [GHC.ms_mod m] []
 #endif
         GHC.handleSourceError (return . Left . show) $
-            liftM Right (infoThing identifier)
+            fmap Right (infoThing identifier)
 
 getType :: FilePath -> (Int, Int) -> GHC.Ghc (Either String [((Int, Int, Int, Int), String)])
 getType file (line, col) =
@@ -62,7 +61,7 @@ withModSummary file action = do
 getModuleSummary :: FilePath -> GHC.Ghc (Maybe GHC.ModSummary)
 getModuleSummary file = do
     modSummaries <- getModSummaries
-    case find (moduleSummaryMatchesFilePath file) $ modSummaries of
+    case find (moduleSummaryMatchesFilePath file) modSummaries of
         Nothing -> return Nothing
         Just moduleSummary -> return (Just moduleSummary)
 
@@ -124,10 +123,14 @@ getSrcSpan (GHC.RealSrcSpan spn) =
 getSrcSpan _ = Nothing
 
 getTypeLHsBind :: GHC.TypecheckedModule -> GHC.LHsBind TypecheckI -> GHC.Ghc (Maybe (GHC.SrcSpan, GHC.Type))
+#if __GLASGOW_HASKELL__ >= 806
+getTypeLHsBind _ (GHC.L spn GHC.FunBind{GHC.fun_matches = grp}) = return $ Just (spn, HsExpr.mg_res_ty $ HsExpr.mg_ext grp)
+#else
 #if __GLASGOW_HASKELL__ >= 708
 getTypeLHsBind _ (GHC.L spn GHC.FunBind{GHC.fun_matches = grp}) = return $ Just (spn, HsExpr.mg_res_ty grp)
 #else
 getTypeLHsBind _ (GHC.L spn GHC.FunBind{GHC.fun_matches = GHC.MatchGroup _ typ}) = return $ Just (spn, typ)
+#endif
 #endif
 getTypeLHsBind _ _ = return Nothing
 
@@ -208,10 +211,20 @@ data Stage = Parser | Renamer | TypeChecker deriving (Eq,Ord,Show)
 --   generated the Ast.
 everythingStaged :: Stage -> (r -> r -> r) -> r -> GenericQ r -> GenericQ r
 everythingStaged stage k z f x
+#if __GLASGOW_HASKELL__ >= 806
+-- This is a hack, ghc 8.6 changed representation from PostTc
+-- to a whole bunch of individial types and I don't really want
+-- to handle all of them, at least for the moment since I'm not using
+-- this functionality
+  | (const False `extQ` fixity `extQ` nameSet) x = z
+#else
   | (const False `extQ` postTcType `extQ` fixity `extQ` nameSet) x = z
+#endif
   | otherwise = foldl k (f x) (gmapQ (everythingStaged stage k z f) x)
   where nameSet    = const (stage `elem` [Parser,TypeChecker]) :: NameSet.NameSet -> Bool
-#if __GLASGOW_HASKELL__ >= 709
+#if __GLASGOW_HASKELL__ >= 806
+        -- there's no more "simple" PostTc type in ghc 8.6
+#elif __GLASGOW_HASKELL__ >= 709
         postTcType = const (stage<TypeChecker)                 :: GHC.PostTc TypecheckI GHC.Type -> Bool
 #else
         postTcType = const (stage<TypeChecker)                 :: GHC.PostTcType -> Bool
@@ -287,3 +300,4 @@ pprInfo pefas (thing, fixity, insts) =
     show_fixity fix
         | fix == GHC.defaultFixity = Outputable.empty
         | otherwise                = Outputable.ppr fix Outputable.<+> Outputable.ppr (GHC.getName thing)
+
