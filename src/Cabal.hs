@@ -11,7 +11,6 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.State (execStateT, modify)
 import Data.Char (isSpace)
 import Data.List (foldl', nub, sort, find, isPrefixOf, isSuffixOf)
-import Data.Maybe (isJust)
 #if __GLASGOW_HASKELL__ < 709
 import Control.Applicative ((<$>))
 import Data.Monoid (Monoid(..))
