@@ -9,7 +9,7 @@ on:
 jobs:
   build:
 
-    runs-on: [linux,macos,windows]
+    runs-on: [linux]
 
     steps:
     - uses: actions/checkout@v2
