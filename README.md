@@ -1,3 +1,6 @@
+:warning: This project is currently unmaintained (issue [#97](https://github.com/hdevtools/hdevtools/issues/97)) and is only tested with GHC versions `>= 7.8.4` until `<= 8.6.3`. :warning:
+
+
 hdevtools
 =========
 
