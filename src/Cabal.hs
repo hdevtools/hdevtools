@@ -10,7 +10,7 @@ import Control.Monad (when)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.State (execStateT, modify)
 import Data.Char (isSpace)
-import Data.List (foldl', nub, sort, find, isPrefixOf, isSuffixOf)
+import Data.List (foldl', nub, sort, find, isPrefixOf, isSuffixOf, intercalate)
 import Data.Maybe (isJust)
 #if __GLASGOW_HASKELL__ < 709
 import Control.Applicative ((<$>))
@@ -27,11 +27,22 @@ import qualified Distribution.PackageDescription.Parsec as Distribution
 import qualified Distribution.PackageDescription.Parse as Distribution
 #endif
 import Distribution.Simple.Configure (configure)
-import Distribution.Simple.LocalBuildInfo (LocalBuildInfo(..), Component(..), componentName, getComponentLocalBuildInfo, componentBuildInfo)
+import Distribution.Simple.LocalBuildInfo (LocalBuildInfo(..), Component(..), componentName, componentBuildInfo)
 import Distribution.Simple.Compiler (PackageDB(..))
 import Distribution.Simple.Command (CommandParse(..), commandParseArgs)
 import Distribution.Simple.GHC (componentGhcOptions)
+#if MIN_VERSION_Cabal(3, 0, 0)
+import Distribution.Simple.Program (defaultProgramDb)
+import Distribution.Types.LocalBuildInfo (componentNameCLBIs)
+#else
+import Distribution.Simple.LocalBuildInfo (getComponentLocalBuildInfo)
 import Distribution.Simple.Program (defaultProgramConfiguration)
+#endif
+#if MIN_VERSION_Cabal(1, 24, 0)
+import Distribution.Simple.LocalBuildInfo (componentUnitId)
+#else
+import Distribution.Simple.LocalBuildInfo (componentId)
+#endif
 import Distribution.Simple.Program.Db (lookupProgram)
 import Distribution.Simple.Program.Types (ConfiguredProgram(programVersion), simpleProgram)
 import Distribution.Simple.Program.GHC (GhcOptions(..), renderGhcOptions)
@@ -40,6 +51,7 @@ import Distribution.Simple.Setup (ConfigFlags(..), defaultConfigFlags, configure
 import Distribution.Utils.NubList
 #endif
 import qualified Distribution.Simple.GHC as GHC(configure)
+import Distribution.Text (display)
 import Distribution.Verbosity (silent)
 import qualified Distribution.Verbosity as Distribution
 import Distribution.Version
@@ -53,6 +65,15 @@ readGenericPackageDescription :: Distribution.Verbosity -> FilePath -> IO Distri
 readGenericPackageDescription = Distribution.readGenericPackageDescription
 #else
 readGenericPackageDescription = Distribution.readPackageDescription
+#endif
+
+#if ! MIN_VERSION_Cabal(3, 0, 0)
+defaultProgramDb = defaultProgramConfiguration
+componentNameCLBIs lbi name = [getComponentLocalBuildInfo lbi name]
+#endif
+
+#if ! MIN_VERSION_Cabal(1, 24, 0)
+componentUnitId = componentId
 #endif
 
 -- TODO: Fix callsites so we don't need `allComponentsBy`. It was taken from
@@ -100,8 +121,7 @@ getPackageGhcOpts path mbStack opts =
     getPackageGhcOpts' = do
         genPkgDescr <- readGenericPackageDescription silent path
         distDir     <- getDistDir
-      -- TODO(SN): defaultProgramConfiguration is deprecated
-        let programCfg = defaultProgramConfiguration
+        let programCfg = defaultProgramDb
         let initCfgFlags = (defaultConfigFlags programCfg)
                              { configDistPref = toFlag distDir
                              -- TODO: figure out how to find out this flag
@@ -169,8 +189,7 @@ getPackageGhcOpts path mbStack opts =
 #endif
                 let hcPath = flagToMaybe . configHcPath $ configFlags localBuildInfo
                 let pkgPath = flagToMaybe . configHcPkg $ configFlags localBuildInfo
-                -- TODO(SN): defaultProgramConfiguration is deprecated
-                (ghcInfo, mbPlatform, _) <- GHC.configure silent hcPath pkgPath defaultProgramConfiguration
+                (ghcInfo, mbPlatform, _) <- GHC.configure silent hcPath pkgPath defaultProgramDb
                 putStrLn $ "Configured GHC " ++ show ghcVersion
                                              ++ " " ++ show mbPlatform
 #if MIN_VERSION_Cabal(1,23,2)
@@ -213,8 +232,14 @@ getComponentGhcOptions lbi comp =
     componentGhcOptions silent lbi bi clbi (buildDir lbi)
 
   where bi   = componentBuildInfo comp
-        -- TODO(SN): getComponentLocalBuildInfo is deprecated as of Cabal-2.0.0.2
-        clbi = getComponentLocalBuildInfo lbi (componentName comp)
+        clbi = case componentNameCLBIs lbi (componentName comp) of
+                 [clbi] -> clbi
+                 [] -> error $ "internal error: there is no configuration data "
+                            ++ "for component " ++ show (componentName comp)
+                 multiple_clbi -> error $ "internal error: backpack is not supported. Found component "
+                                       ++ show (componentName comp)
+                                       ++ " refers to multiple targets: "
+                                       ++ intercalate ", " (map (display . componentUnitId) multiple_clbi)
 
 getGhcVersion :: LocalBuildInfo -> Maybe Version
 getGhcVersion lbi = let db = withPrograms lbi
